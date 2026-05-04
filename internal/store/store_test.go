@@ -71,14 +71,23 @@ func TestStoreWithVerifyStatus(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(src, "index.md"), []byte("# Hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("HOME", t.TempDir())
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+	t.Setenv("PATH", "") // block claude so SpawnVerifier fails fast without spawning
 
-	tut, err := store.Store(src, true)
+	// Store should fail because SpawnVerifier can't find claude, but
+	// the metadata.json is written BEFORE SpawnVerifier is called.
+	// We verify the metadata file was written with status=verifying.
+	store.Store(src, true) // intentionally ignoring error
+
+	slug := filepath.Base(src)
+	tutDir := filepath.Join(homeDir, ".lathe", "tutorials", slug)
+	tut, err := store.ReadMetadata(tutDir)
 	if err != nil {
-		t.Fatalf("Store() error = %v", err)
+		t.Fatalf("metadata not written before SpawnVerifier: %v", err)
 	}
 	if tut.Status != store.StatusVerifying {
-		t.Errorf("Store() Status = %q, want %q", tut.Status, store.StatusVerifying)
+		t.Errorf("Status = %q, want %q", tut.Status, store.StatusVerifying)
 	}
 }
 

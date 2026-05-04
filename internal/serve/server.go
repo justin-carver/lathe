@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/devenjarvis/lathe/internal/store"
 )
@@ -64,9 +65,21 @@ func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
 	buf.WriteTo(w)
 }
 
+func (s *Server) safeTutorialPath(parts ...string) (string, bool) {
+	p := filepath.Join(append([]string{s.tutorialsDir}, parts...)...)
+	if !strings.HasPrefix(p, s.tutorialsDir+string(filepath.Separator)) {
+		return "", false
+	}
+	return p, true
+}
+
 func (s *Server) handleTutorial(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
-	tutDir := filepath.Join(s.tutorialsDir, slug)
+	tutDir, ok := s.safeTutorialPath(slug)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
 	tut, err := store.ReadMetadata(tutDir)
 	if err != nil {
 		http.NotFound(w, r)
@@ -82,7 +95,11 @@ func (s *Server) handleTutorial(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handlePart(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
 	part := r.PathValue("part")
-	tutDir := filepath.Join(s.tutorialsDir, slug)
+	tutDir, ok := s.safeTutorialPath(slug)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
 	tut, err := store.ReadMetadata(tutDir)
 	if err != nil {
 		http.NotFound(w, r)

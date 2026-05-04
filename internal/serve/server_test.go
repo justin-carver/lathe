@@ -121,3 +121,19 @@ func TestSeriesRedirect(t *testing.T) {
 		t.Errorf("redirect Location = %q, want %q", loc, "/test-series/part-01.md")
 	}
 }
+
+func TestPathTraversalBlocked(t *testing.T) {
+	dir := t.TempDir()
+	makeTestTutorial(t, dir, "test-tutorial", false)
+
+	srv := serve.NewServer(dir)
+	// URL-decode happens before ServeMux matching so %2f won't work,
+	// but a literal .. in the path still needs to be blocked
+	req := httptest.NewRequest(http.MethodGet, "/test-tutorial/../../../etc/passwd", nil)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code == http.StatusOK {
+		t.Error("path traversal should not succeed")
+	}
+}
