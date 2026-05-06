@@ -70,7 +70,10 @@ lathe list               # show all stored tutorials with status badges
 lathe open <slug>        # open a specific tutorial (requires lathe serve)
 lathe store <path>       # save a tutorial directory manually
 lathe store <path> --verify   # save and run background verification
+lathe rm <slug>          # delete a stored tutorial (prompts unless --force)
 ```
+
+You can also delete tutorials from the web UI — each row on the list page has a `×` button that removes the tutorial after a confirmation.
 
 Default port is `4242`; override with `--port`.
 
@@ -121,7 +124,7 @@ Verification runs with `--dangerously-skip-permissions` and is sandboxed only by
 ## Repository layout
 
 ```
-cmd/                CLI entry points (root, list, open, serve, store)
+cmd/                CLI entry points (root, list, open, rm, serve, store)
 internal/config/    ~/.lathe/tutorials path resolution
 internal/store/     copy + metadata read/write, slug detection
 internal/serve/     HTTP server, markdown renderer, embedded HTML templates

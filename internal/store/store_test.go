@@ -91,6 +91,57 @@ func TestStoreWithVerifyStatus(t *testing.T) {
 	}
 }
 
+func TestDeleteRemovesTutorial(t *testing.T) {
+	src := t.TempDir()
+	if err := os.WriteFile(filepath.Join(src, "index.md"), []byte("# Hello"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+
+	tut, err := store.Store(src, false)
+	if err != nil {
+		t.Fatalf("Store() error = %v", err)
+	}
+	tutDir := filepath.Join(homeDir, ".lathe", "tutorials", tut.Slug)
+	if _, err := os.Stat(tutDir); err != nil {
+		t.Fatalf("tutorial dir not created: %v", err)
+	}
+
+	if err := store.Delete(tut.Slug); err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+	if _, err := os.Stat(tutDir); !os.IsNotExist(err) {
+		t.Errorf("tutorial dir still exists after Delete: stat err = %v", err)
+	}
+}
+
+func TestDeleteMissingSlug(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	if err := store.Delete("does-not-exist"); err == nil {
+		t.Error("Delete() of missing slug should error")
+	}
+}
+
+func TestDeleteRejectsBadSlugs(t *testing.T) {
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+
+	sentinel := filepath.Join(homeDir, "sentinel")
+	if err := os.WriteFile(sentinel, []byte("don't touch"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, slug := range []string{"", ".", "..", "../sentinel", "foo/bar", `foo\bar`} {
+		if err := store.Delete(slug); err == nil {
+			t.Errorf("Delete(%q) should reject as invalid", slug)
+		}
+	}
+	if _, err := os.Stat(sentinel); err != nil {
+		t.Errorf("sentinel file disturbed by bad-slug delete: %v", err)
+	}
+}
+
 func TestSlugToTitle(t *testing.T) {
 	cases := []struct {
 		slug  string

@@ -107,6 +107,31 @@ func detectParts(dir string) ([]string, bool) {
 	return parts, len(parts) > 0
 }
 
+func Delete(slug string) error {
+	if slug == "" || slug == "." || slug == ".." || strings.ContainsAny(slug, `/\`) {
+		return fmt.Errorf("invalid slug: %q", slug)
+	}
+	tutorialsDir, err := config.TutorialsDir()
+	if err != nil {
+		return err
+	}
+	target := filepath.Join(tutorialsDir, slug)
+	if !strings.HasPrefix(target, tutorialsDir+string(filepath.Separator)) {
+		return fmt.Errorf("invalid slug: %q", slug)
+	}
+	info, err := os.Stat(target)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("tutorial %q not found", slug)
+		}
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("not a tutorial directory: %q", slug)
+	}
+	return os.RemoveAll(target)
+}
+
 func SlugToTitle(slug string) string {
 	words := strings.Split(slug, "-")
 	for i, w := range words {

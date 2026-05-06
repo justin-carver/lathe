@@ -157,6 +157,55 @@ func TestStaticAssetWhitelist(t *testing.T) {
 	}
 }
 
+func TestDeleteEndpointRemovesTutorial(t *testing.T) {
+	dir := t.TempDir()
+	tutDir := makeTestTutorial(t, dir, "doomed", false)
+
+	srv := serve.NewServer(dir)
+	req := httptest.NewRequest(http.MethodPost, "/-/delete/doomed", nil)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusSeeOther {
+		t.Errorf("POST /-/delete/doomed = %d, want %d", w.Code, http.StatusSeeOther)
+	}
+	if loc := w.Header().Get("Location"); loc != "/" {
+		t.Errorf("redirect Location = %q, want %q", loc, "/")
+	}
+	if _, err := os.Stat(tutDir); !os.IsNotExist(err) {
+		t.Errorf("tutorial dir still exists after delete: stat err = %v", err)
+	}
+}
+
+func TestDeleteEndpointRejectsGet(t *testing.T) {
+	dir := t.TempDir()
+	makeTestTutorial(t, dir, "stay", false)
+
+	srv := serve.NewServer(dir)
+	req := httptest.NewRequest(http.MethodGet, "/-/delete/stay", nil)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code == http.StatusSeeOther || w.Code == http.StatusOK {
+		t.Errorf("GET /-/delete/stay = %d, want method not allowed", w.Code)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "stay")); err != nil {
+		t.Errorf("tutorial removed via GET: %v", err)
+	}
+}
+
+func TestDeleteEndpointMissingSlug(t *testing.T) {
+	dir := t.TempDir()
+	srv := serve.NewServer(dir)
+	req := httptest.NewRequest(http.MethodPost, "/-/delete/nonexistent", nil)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("POST /-/delete/nonexistent = %d, want %d", w.Code, http.StatusNotFound)
+	}
+}
+
 func TestPathTraversalBlocked(t *testing.T) {
 	dir := t.TempDir()
 	makeTestTutorial(t, dir, "test-tutorial", false)
