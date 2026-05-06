@@ -14,14 +14,14 @@ The boundary is strict: **skills generate content; the CLI owns durable state.**
 main.go                           cobra entrypoint
 cmd/
   root.go                         rootCmd ("lathe")
-  list.go, open.go, serve.go, store.go    one subcommand per file
+  list.go, open.go, rm.go, serve.go, store.go    one subcommand per file
 internal/
   config/                         TutorialsDir() → ~/.lathe/tutorials
   store/
     metadata.go                   Tutorial struct, Status enum, Read/WriteMetadata
-    store.go                      Store(), copyDir/copyFile, detectParts, SlugToTitle
+    store.go                      Store(), Delete(), copyDir/copyFile, detectParts, SlugToTitle
   serve/
-    server.go                     net/http handlers (list, tutorial, part)
+    server.go                     net/http handlers (list, tutorial, part, delete)
     renderer.go                   goldmark + chroma markdown rendering
     layout.html, list.html        embed.FS templates
   verify/
@@ -61,7 +61,7 @@ There is no top-level test runner script — tests are plain `go test`. The `/la
 ## Things to avoid
 
 - Don't add a `lathe verify` or `lathe status` command — verification is intentionally always automatic via `--verify` (see "Out of Scope" in the design spec).
-- Don't add tutorial deletion, editing, or sharing commands without checking with the user — the v1 scope is deliberately narrow.
+- Don't add tutorial editing or sharing commands without checking with the user — the v1 scope is deliberately narrow. (Deletion is supported via `lathe rm <slug>` and the `×` button on the web list page; both go through `store.Delete` / `safeTutorialPath`.)
 - Don't have the verify skill modify the tutorial source markdown — it's read-only with respect to the tutorial directory, and only writes `verify-result.json` and the `status` field of `metadata.json`.
 - Don't add OS-level sandboxing (sandbox-exec, Docker) for verification unless explicitly asked — soft isolation via `--project-dir` is the chosen tradeoff.
 

@@ -31,10 +31,14 @@
     .header{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem}
     h1{font-size:1.75rem;margin-bottom:.4rem}
     .subtitle{color:var(--text-faint);margin-bottom:2rem;font-size:.95rem}
-    .tutorial{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.1rem 1.5rem;margin:.75rem 0;display:flex;justify-content:space-between;align-items:center}
+    .tutorial{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.1rem 1.5rem;margin:.75rem 0;display:flex;justify-content:space-between;align-items:center;gap:1rem}
     .tutorial a{text-decoration:none;color:var(--link);font-weight:500;font-size:1rem}
     .tutorial a:hover{text-decoration:underline}
     .meta{font-size:.8rem;color:var(--text-empty);margin-top:.2rem}
+    .tutorial-actions{display:flex;align-items:center;gap:.6rem;flex-shrink:0}
+    .delete-form{margin:0}
+    .delete-btn{background:transparent;border:1px solid var(--border);color:var(--text-empty);font:inherit;font-size:1rem;line-height:1;padding:.15rem .55rem;border-radius:5px;cursor:pointer}
+    .delete-btn:hover{color:var(--badge-failed-text);border-color:var(--badge-failed-text);background:var(--badge-failed-bg)}
     .badge{font-size:.7rem;padding:.2rem .5rem;border-radius:4px}
     .badge.verified{background:var(--badge-verified-bg);color:var(--badge-verified-text)}
     .badge.verifying{background:var(--badge-verifying-bg);color:var(--badge-verifying-text)}
@@ -66,10 +70,15 @@
     <a href="/{{.Slug}}/">{{.Title}}</a>
     <div class="meta">{{if .Series}}{{len .Parts}} parts{{else}}single tutorial{{end}} · {{.Created.Format "Jan 2, 2006"}}</div>
   </div>
-  {{if eq .Status "verified"}}<span class="badge verified">✅ Verified</span>
-  {{else if eq .Status "verifying"}}<span class="badge verifying">⏳ Verifying…</span>
-  {{else if eq .Status "failed"}}<span class="badge failed">❌ Failed</span>
-  {{end}}
+  <div class="tutorial-actions">
+    {{if eq .Status "verified"}}<span class="badge verified">✅ Verified</span>
+    {{else if eq .Status "verifying"}}<span class="badge verifying">⏳ Verifying…</span>
+    {{else if eq .Status "failed"}}<span class="badge failed">❌ Failed</span>
+    {{end}}
+    <form method="POST" action="/-/delete/{{.Slug}}" class="delete-form" data-tutorial-title="{{.Title}}">
+      <button type="submit" class="delete-btn" aria-label="Delete tutorial" title="Delete tutorial">×</button>
+    </form>
+  </div>
 </div>
 {{end}}
 {{else}}
@@ -91,6 +100,16 @@
       document.documentElement.setAttribute('data-theme', next);
       try { localStorage.setItem('lathe-theme', next); } catch (e) {}
       refresh();
+    });
+  })();
+  (function(){
+    document.querySelectorAll('.delete-form').forEach(function(form){
+      form.addEventListener('submit', function(e){
+        var title = form.dataset.tutorialTitle || 'this tutorial';
+        if (!confirm('Delete "' + title + '"? This cannot be undone.')) {
+          e.preventDefault();
+        }
+      });
     });
   })();
 </script>

@@ -45,6 +45,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /{$}", s.handleList)
 	mux.HandleFunc("GET /{slug}/", s.handleTutorial)
 	mux.HandleFunc("GET /{slug}/{part}", s.handlePart)
+	mux.HandleFunc("POST /-/delete/{slug}", s.handleDelete)
 	return mux
 }
 
@@ -143,6 +144,25 @@ func (s *Server) handlePart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.renderPart(w, tut, tutDir, part)
+}
+
+func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
+	slug := r.PathValue("slug")
+	tutDir, ok := s.safeTutorialPath(slug)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	info, err := os.Stat(tutDir)
+	if err != nil || !info.IsDir() {
+		http.NotFound(w, r)
+		return
+	}
+	if err := os.RemoveAll(tutDir); err != nil {
+		http.Error(w, "delete failed", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func (s *Server) renderPart(w http.ResponseWriter, tut *store.Tutorial, tutDir, part string) {
