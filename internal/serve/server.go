@@ -16,7 +16,7 @@ import (
 //go:embed layout.html list.html
 var templateFS embed.FS
 
-//go:embed static/mermaid.min.js
+//go:embed static/mermaid.min.js static/marked.min.js static/dompurify.min.js
 var staticFS embed.FS
 
 type Server struct {
@@ -55,7 +55,9 @@ func (s *Server) Handler() http.Handler {
 // unexpected route — even though the {name} wildcard already can't contain a
 // slash, this is the cheap belt-and-suspenders check.
 var staticAssets = map[string]string{
-	"mermaid.min.js": "application/javascript; charset=utf-8",
+	"mermaid.min.js":   "application/javascript; charset=utf-8",
+	"marked.min.js":    "application/javascript; charset=utf-8",
+	"dompurify.min.js": "application/javascript; charset=utf-8",
 }
 
 func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
