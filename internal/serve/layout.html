@@ -14,6 +14,18 @@
       } catch (e) {}
     })();
   </script>
+  <script>
+    (function(){
+      try {
+        var saved = localStorage.getItem('lathe-sidebar');
+        var wide = window.matchMedia && window.matchMedia('(min-width:900px)').matches;
+        var open = saved ? (saved === 'open') : wide;
+        document.documentElement.setAttribute('data-sidebar', open ? 'open' : 'closed');
+      } catch (e) {
+        document.documentElement.setAttribute('data-sidebar', 'open');
+      }
+    })();
+  </script>
   <style>
     :root{
       --bg:#f9fafb;--surface:#fff;--border:#e5e7eb;--text:#111827;--text-muted:#374151;--text-subtle:#4b5563;--text-faint:#6b7280;
@@ -38,9 +50,16 @@
       --callout-aside-bg:transparent;--callout-aside-border:#374151;--callout-aside-label:#9ca3af;
     }
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+    html,body{overflow-x:hidden}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;font-size:clamp(.95rem, .9rem + .15vw, 1rem)}
+
+    /* Reading-progress bar (fixed, above sticky header, below ask drawer) */
+    #progressBar{position:fixed;top:0;left:0;right:0;height:3px;background:transparent;z-index:70;pointer-events:none}
+    #progressBar > div{height:100%;background:var(--active-text);transform:scaleX(0);transform-origin:left center;will-change:transform}
+
+    /* Layout */
     .layout{display:flex;min-height:100vh}
-    nav{width:260px;background:var(--surface);border-right:1px solid var(--border);padding:1.5rem;position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column}
+    nav{width:260px;background:var(--surface);border-right:1px solid var(--border);padding:1.5rem;position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;z-index:80}
     nav h2{font-size:.9rem;font-weight:600;color:var(--text-muted);margin-bottom:.5rem;line-height:1.4}
     .badge{display:inline-block;font-size:.7rem;padding:.2rem .5rem;border-radius:4px;margin-bottom:1.25rem}
     .badge.verified{background:var(--badge-verified-bg);color:var(--badge-verified-text)}
@@ -55,14 +74,32 @@
     .theme-toggle:hover{background:var(--hover-bg);color:var(--text)}
     .theme-toggle .icon{font-size:.95rem;line-height:1}
     [data-theme="dark"] .theme-toggle .icon-light,[data-theme="light"] .theme-toggle .icon-dark,:root:not([data-theme]) .theme-toggle .icon-dark{display:none}
-    main{flex:1;max-width:760px;padding:3rem 2.5rem}
-    h1{font-size:1.9rem;margin-bottom:1.5rem;color:var(--text)}
-    h2{font-size:1.4rem;margin:2rem 0 .75rem;color:var(--text)}
-    h3{font-size:1.15rem;margin:1.75rem 0 .6rem;color:var(--text-muted)}
+
+    /* Off-canvas sidebar backdrop (narrow only) */
+    #sidebarBackdrop{position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:75;display:none}
+    [data-theme="dark"] #sidebarBackdrop{background:rgba(0,0,0,0.55)}
+
+    /* Sticky narrow-screen top bar */
+    #topBar{display:none;position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--border);padding:.55rem .85rem;z-index:50;align-items:center;gap:.7rem}
+    #hamburger{background:transparent;border:1px solid var(--border);color:var(--text-subtle);font:inherit;cursor:pointer;padding:.3rem .55rem;border-radius:5px;line-height:1;font-size:1.15rem;flex-shrink:0}
+    #hamburger:hover{background:var(--hover-bg);color:var(--text)}
+    #topBar .crumb{font-size:.85rem;color:var(--text-subtle);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+    #topBar .crumb strong{color:var(--text);font-weight:600}
+    #topBar .crumb .sep{margin:0 .35rem;color:var(--text-faint)}
+
+    /* Main */
+    main{flex:1;max-width:760px;padding:clamp(1.5rem, 1rem + 2vw, 3rem) clamp(1.1rem, .6rem + 2.5vw, 2.5rem)}
+    h1{font-size:clamp(1.5rem, 1.15rem + 1.2vw, 1.9rem);margin-bottom:1.5rem;color:var(--text);line-height:1.25}
+    h2{font-size:clamp(1.2rem, 1.02rem + .65vw, 1.4rem);margin:2rem 0 .75rem;color:var(--text);line-height:1.3}
+    h3{font-size:clamp(1.05rem, .97rem + .3vw, 1.15rem);margin:1.75rem 0 .6rem;color:var(--text-muted)}
     p{margin-bottom:1rem;color:var(--text-muted)}
-    code{font-family:'JetBrains Mono','Fira Code',monospace;font-size:.85em;background:var(--code-bg);padding:.1rem .35rem;border-radius:3px;color:var(--code-text)}
-    pre{border-radius:8px;margin:1.25rem 0;padding:.9rem 1rem;overflow-x:auto;border:1px solid var(--border);background:var(--code-bg);color:var(--code-text);font-size:.875rem}
-    pre code{background:none;padding:0;color:inherit;font-size:1em}
+    code{font-family:'JetBrains Mono','Fira Code',monospace;font-size:.85em;background:var(--code-bg);padding:.1rem .35rem;border-radius:3px;color:var(--code-text);overflow-wrap:anywhere;word-wrap:break-word}
+    pre{border-radius:8px;margin:1.25rem 0;padding:.9rem 1rem;overflow-x:auto;border:1px solid var(--border);background:var(--code-bg);color:var(--code-text);font-size:.875rem;transition:box-shadow 120ms ease-out}
+    pre code{background:none;padding:0;color:inherit;font-size:1em;overflow-wrap:normal;word-wrap:normal;white-space:pre}
+    /* Subtle right-edge fade hints horizontal scrollability — inset shadow stays
+       pinned to the visible right edge regardless of scroll position. */
+    pre[data-overflow="true"]{box-shadow:inset -18px 0 14px -12px rgba(0,0,0,0.18)}
+    [data-theme="dark"] pre[data-overflow="true"]{box-shadow:inset -18px 0 14px -12px rgba(0,0,0,0.55)}
     {{.HighlightCSS}}
     ul,ol{margin:.75rem 0 .75rem 1.5rem;color:var(--text-muted)}
     li{margin:.25rem 0}
@@ -81,19 +118,39 @@
     .callout-designnote .callout-label{color:var(--callout-design-label)}
     .callout-aside{background:var(--callout-aside-bg);border-color:var(--callout-aside-border);font-style:italic}
     .callout-aside .callout-label{color:var(--callout-aside-label);font-style:normal}
-    .mermaid{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem;margin:1.25rem 0;text-align:center;overflow-x:auto}
+    .mermaid{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem;margin:1.25rem 0;text-align:center;overflow-x:auto;max-width:100%}
     .mermaid:not([data-processed]){font-family:'JetBrains Mono','Fira Code',monospace;font-size:.8rem;text-align:left;white-space:pre;color:var(--text-faint)}
     .mermaid svg{max-width:100%;height:auto}
-    #askButton{position:fixed;bottom:1.5rem;right:1.5rem;z-index:50;background:var(--active-bg);color:var(--active-text);border:1px solid var(--border);font:inherit;font-weight:600;font-size:.9rem;padding:.65rem 1.1rem;border-radius:9999px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.15);transition:transform 150ms ease-out,box-shadow 150ms ease-out}
+
+    /* Inline prev/next part navigation */
+    .part-nav{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--border)}
+    .part-nav a{min-width:0;text-decoration:none;color:var(--text-subtle);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.65rem .9rem;display:flex;flex-direction:column;gap:.2rem;transition:color 120ms,border-color 120ms,background 120ms}
+    .part-nav a:hover{color:var(--active-text);border-color:var(--active-text);background:var(--hover-bg)}
+    .part-nav .label{font-size:.72rem;font-weight:600;letter-spacing:.03em;color:var(--text-faint)}
+    .part-nav .title{font-size:.92rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .part-nav .next{text-align:right}
+    .part-nav .spacer{display:block}
+
+    /* Floating Ask button (wide screens) */
+    #askButton{position:fixed;bottom:1.5rem;right:1.5rem;z-index:40;background:var(--active-bg);color:var(--active-text);border:1px solid var(--border);font:inherit;font-weight:600;font-size:.9rem;padding:.65rem 1.1rem;border-radius:9999px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.15);transition:transform 150ms ease-out,box-shadow 150ms ease-out}
     #askButton:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,0,0,0.2)}
     #askButton:focus-visible{outline:2px solid var(--active-text);outline-offset:2px}
-    #askDrawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);background:var(--surface);border-left:1px solid var(--border);transform:translateX(100%);transition:transform 200ms ease-out;z-index:60;display:flex;flex-direction:column}
+
+    /* Bottom action dock (narrow only) */
+    #bottomDock{display:none;position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:.55rem .85rem;z-index:50;justify-content:space-between;align-items:center;gap:.7rem}
+    #bottomDock .theme-toggle{margin:0;width:auto}
+    #dockAsk{font:inherit;font-weight:600;font-size:.9rem;background:var(--active-bg);color:var(--active-text);border:1px solid var(--border);padding:.5rem 1.15rem;border-radius:9999px;cursor:pointer}
+    #dockAsk:hover{filter:brightness(.97)}
+    #dockAsk:focus-visible{outline:2px solid var(--active-text);outline-offset:2px}
+
+    /* Ask drawer (wide: right-side slide-in) */
+    #askDrawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);background:var(--surface);border-left:1px solid var(--border);transform:translateX(100%);transition:transform 200ms ease-out;z-index:90;display:flex;flex-direction:column}
     #askDrawer.open{transform:translateX(0)}
     #askDrawer header{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:1rem 1.25rem;border-bottom:1px solid var(--border)}
     #askDrawer header h3{font-size:1rem;font-weight:600;color:var(--text);margin:0;line-height:1.3;overflow:hidden;text-overflow:ellipsis}
     #askClose{background:transparent;border:none;color:var(--text-subtle);font-size:1.5rem;line-height:1;cursor:pointer;padding:.25rem .5rem;border-radius:4px}
     #askClose:hover{background:var(--hover-bg);color:var(--text)}
-    #askBackdrop{position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:55}
+    #askBackdrop{position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:85}
     [data-theme="dark"] #askBackdrop{background:rgba(0,0,0,0.55)}
     #askLog{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.75rem}
     .ask-bubble{border-radius:8px;padding:.6rem .8rem;max-width:92%;white-space:pre-wrap;word-wrap:break-word;color:var(--text);font-size:.9rem;line-height:1.5}
@@ -109,12 +166,35 @@
     #askStop{background:var(--badge-failed-bg);color:var(--badge-failed-text)}
     #askStop:hover{filter:brightness(0.95)}
     #askSubmit:disabled,#askStop:disabled{opacity:.5;cursor:not-allowed}
-    @media (max-width:600px){#askDrawer{width:100vw}}
+
+    /* === Narrow viewport (<900px): off-canvas sidebar, sticky header, bottom dock === */
+    @media (max-width:899px){
+      .layout{display:block}
+      nav{position:fixed;top:0;left:0;height:100vh;width:min(280px,82vw);transform:translateX(-100%);transition:transform 200ms ease-out;border-right:1px solid var(--border)}
+      [data-sidebar="open"] nav{transform:translateX(0)}
+      [data-sidebar="open"] #sidebarBackdrop{display:block}
+      main{max-width:none;padding-bottom:5.5rem}
+      #topBar{display:flex}
+      #bottomDock{display:flex}
+      #askButton{display:none}
+      nav .theme-toggle{display:none}
+    }
+
+    /* === Bottom-sheet Ask drawer (≤700px) === */
+    @media (max-width:700px){
+      #askDrawer{top:auto;left:0;right:0;width:100%;height:80vh;border-left:none;border-top:1px solid var(--border);border-radius:12px 12px 0 0;transform:translateY(100%)}
+      #askDrawer.open{transform:translateY(0)}
+    }
   </style>
 </head>
 <body>
+<div id="progressBar" aria-hidden="true"><div></div></div>
+<header id="topBar">
+  <button type="button" id="hamburger" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">≡</button>
+  <span class="crumb"><strong>{{.Tutorial.Title}}</strong>{{if and .Tutorial.Series .CurrentPartNumber}}<span class="sep">›</span>Part {{.CurrentPartNumber}}{{end}}</span>
+</header>
 <div class="layout">
-  <nav>
+  <nav id="sidebar">
     <h2>{{.Tutorial.Title}}</h2>
     {{if eq .Tutorial.Status "verified"}}<span class="badge verified">✅ Verified</span>
     {{else if eq .Tutorial.Status "verifying"}}<span class="badge verifying">⏳ Verifying…</span>
@@ -127,14 +207,39 @@
       {{end}}
     </ul>
     {{end}}
-    <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+    <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
       <span class="icon icon-light">☀</span><span class="icon icon-dark">☾</span>
       <span class="label"></span>
     </button>
   </nav>
-  <main>{{.Content}}</main>
+  <main>
+    {{.Content}}
+    {{if .Tutorial.Series}}
+    <nav class="part-nav" aria-label="Part navigation">
+      {{if .PrevPart}}
+      <a href="/{{.Tutorial.Slug}}/{{.PrevPart}}" class="prev">
+        <span class="label">◀ Part {{.PrevNumber}}</span>
+        <span class="title">{{.PrevTitle}}</span>
+      </a>
+      {{else}}<span class="spacer"></span>{{end}}
+      {{if .NextPart}}
+      <a href="/{{.Tutorial.Slug}}/{{.NextPart}}" class="next">
+        <span class="label">Part {{.NextNumber}} ▶</span>
+        <span class="title">{{.NextTitle}}</span>
+      </a>
+      {{else}}<span class="spacer"></span>{{end}}
+    </nav>
+    {{end}}
+  </main>
 </div>
-<button type="button" id="askButton" aria-label="Ask a question about this tutorial">Ask</button>
+<div id="sidebarBackdrop"></div>
+<button type="button" id="askButton" data-ask-open aria-label="Ask a question about this tutorial">Ask</button>
+<div id="bottomDock">
+  <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
+    <span class="icon icon-light">☀</span><span class="icon icon-dark">☾</span>
+  </button>
+  <button type="button" id="dockAsk" data-ask-open aria-label="Ask a question about this tutorial">Ask</button>
+</div>
 <aside id="askDrawer" data-slug="{{.Tutorial.Slug}}" data-part="{{.CurrentPart}}" aria-hidden="true">
   <header>
     <h3>Ask about "{{.Tutorial.Title}}"</h3>
@@ -151,23 +256,105 @@
 </aside>
 <div id="askBackdrop" hidden></div>
 <script>
+  // Theme toggle: attach to every element marked [data-theme-toggle] so the
+  // sidebar button and the narrow bottom-dock button stay in sync.
   (function(){
-    var btn = document.getElementById('themeToggle');
-    if (!btn) return;
-    var label = btn.querySelector('.label');
+    var toggles = document.querySelectorAll('[data-theme-toggle]');
+    if (!toggles.length) return;
     function refresh(){
       var t = document.documentElement.getAttribute('data-theme') || 'light';
-      if (label) label.textContent = t === 'dark' ? 'Light mode' : 'Dark mode';
+      var labelText = t === 'dark' ? 'Light mode' : 'Dark mode';
+      toggles.forEach(function(btn){
+        var label = btn.querySelector('.label');
+        if (label) label.textContent = labelText;
+      });
     }
     refresh();
-    btn.addEventListener('click', function(){
-      var current = document.documentElement.getAttribute('data-theme') || 'light';
-      var next = current === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      try { localStorage.setItem('lathe-theme', next); } catch (e) {}
-      refresh();
-      document.dispatchEvent(new CustomEvent('lathe:themechange', {detail:{theme:next}}));
+    toggles.forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var current = document.documentElement.getAttribute('data-theme') || 'light';
+        var next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        try { localStorage.setItem('lathe-theme', next); } catch (e) {}
+        refresh();
+        document.dispatchEvent(new CustomEvent('lathe:themechange', {detail:{theme:next}}));
+      });
     });
+  })();
+</script>
+<script>
+  // Sidebar toggle + persistence. The inline <head> script already applied the
+  // initial data-sidebar attribute before paint; this just handles toggling and
+  // syncs aria-expanded.
+  (function(){
+    var html = document.documentElement;
+    var hamburger = document.getElementById('hamburger');
+    var backdrop = document.getElementById('sidebarBackdrop');
+    var sidebar = document.getElementById('sidebar');
+    if (!hamburger || !backdrop || !sidebar) return;
+
+    function isOpen(){ return html.getAttribute('data-sidebar') === 'open'; }
+    function syncAria(){ hamburger.setAttribute('aria-expanded', isOpen() ? 'true' : 'false'); }
+    function setOpen(open){
+      html.setAttribute('data-sidebar', open ? 'open' : 'closed');
+      try { localStorage.setItem('lathe-sidebar', open ? 'open' : 'closed'); } catch (e) {}
+      syncAria();
+    }
+    syncAria();
+
+    hamburger.addEventListener('click', function(){ setOpen(!isOpen()); });
+    backdrop.addEventListener('click', function(){ setOpen(false); });
+    document.addEventListener('keydown', function(ev){
+      if (ev.key === 'Escape' && isOpen() && window.matchMedia('(max-width:899px)').matches) {
+        setOpen(false);
+      }
+    });
+    // Auto-close after navigating to a part link on narrow viewports.
+    sidebar.querySelectorAll('a').forEach(function(a){
+      a.addEventListener('click', function(){
+        if (window.matchMedia('(max-width:899px)').matches) setOpen(false);
+      });
+    });
+  })();
+</script>
+<script>
+  // Reading-progress bar — RAF-throttled, transform-based to avoid layout thrash.
+  (function(){
+    var bar = document.querySelector('#progressBar > div');
+    if (!bar) return;
+    var pending = false;
+    function update(){
+      pending = false;
+      var doc = document.documentElement;
+      var scroll = window.scrollY || doc.scrollTop || 0;
+      var max = (doc.scrollHeight - doc.clientHeight) || 1;
+      var ratio = max > 0 ? Math.min(1, Math.max(0, scroll / max)) : 0;
+      bar.style.transform = 'scaleX(' + ratio + ')';
+    }
+    function onScroll(){
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(update);
+    }
+    update();
+    window.addEventListener('scroll', onScroll, {passive:true});
+    window.addEventListener('resize', onScroll);
+  })();
+</script>
+<script>
+  // Code-block overflow detection — flips data-overflow on <pre> when the block
+  // is horizontally scrollable, so the inset right-edge fade can hint at it.
+  (function(){
+    var pres = document.querySelectorAll('pre');
+    if (!pres.length) return;
+    function check(){
+      pres.forEach(function(pre){
+        if (pre.scrollWidth - pre.clientWidth > 1) pre.dataset.overflow = 'true';
+        else pre.removeAttribute('data-overflow');
+      });
+    }
+    check();
+    window.addEventListener('resize', check);
   })();
 </script>
 <script>
@@ -204,7 +391,7 @@
 <script>
   (function(){
     var drawer = document.getElementById('askDrawer');
-    var openBtn = document.getElementById('askButton');
+    var openButtons = document.querySelectorAll('[data-ask-open]');
     var closeBtn = document.getElementById('askClose');
     var backdrop = document.getElementById('askBackdrop');
     var log = document.getElementById('askLog');
@@ -212,7 +399,7 @@
     var input = document.getElementById('askInput');
     var submit = document.getElementById('askSubmit');
     var stop = document.getElementById('askStop');
-    if (!drawer || !openBtn || !form) return;
+    if (!drawer || !openButtons.length || !form) return;
 
     var slug = drawer.getAttribute('data-slug') || '';
     var part = drawer.getAttribute('data-part') || '';
@@ -233,7 +420,7 @@
       }
     }
 
-    openBtn.addEventListener('click', openDrawer);
+    openButtons.forEach(function(b){ b.addEventListener('click', openDrawer); });
     closeBtn.addEventListener('click', closeDrawer);
     backdrop.addEventListener('click', closeDrawer);
     document.addEventListener('keydown', function(ev){

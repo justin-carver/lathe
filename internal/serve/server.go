@@ -177,13 +177,42 @@ func (s *Server) renderPart(w http.ResponseWriter, tut *store.Tutorial, tutDir, 
 		http.Error(w, "render error", http.StatusInternalServerError)
 		return
 	}
+
+	var prevPart, nextPart, prevTitle, nextTitle string
+	var prevNumber, nextNumber, currentNumber int
+	if tut.Series {
+		for i, p := range tut.Parts {
+			if p == part {
+				currentNumber = i + 1
+				if i > 0 {
+					prevPart = tut.Parts[i-1]
+					prevTitle = store.SlugToTitle(strings.TrimSuffix(prevPart, ".md"))
+					prevNumber = i
+				}
+				if i < len(tut.Parts)-1 {
+					nextPart = tut.Parts[i+1]
+					nextTitle = store.SlugToTitle(strings.TrimSuffix(nextPart, ".md"))
+					nextNumber = i + 2
+				}
+				break
+			}
+		}
+	}
+
 	var buf bytes.Buffer
 	if err := s.layoutTmpl.Execute(&buf, map[string]any{
-		"Title":        tut.Title,
-		"Tutorial":     tut,
-		"CurrentPart":  part,
-		"Content":      template.HTML(content),
-		"HighlightCSS": s.highlightCSS,
+		"Title":             tut.Title,
+		"Tutorial":          tut,
+		"CurrentPart":       part,
+		"CurrentPartNumber": currentNumber,
+		"Content":           template.HTML(content),
+		"HighlightCSS":      s.highlightCSS,
+		"PrevPart":          prevPart,
+		"NextPart":          nextPart,
+		"PrevTitle":         prevTitle,
+		"NextTitle":         nextTitle,
+		"PrevNumber":        prevNumber,
+		"NextNumber":        nextNumber,
 	}); err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
 		return

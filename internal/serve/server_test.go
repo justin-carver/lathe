@@ -1,6 +1,7 @@
 package serve_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -89,6 +90,117 @@ func TestSeriesPartPage(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("GET /test-series/part-01.md = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+func makeSeriesTutorialWithParts(t *testing.T, dir, slug string, numParts int) {
+	t.Helper()
+	tutDir := filepath.Join(dir, slug)
+	if err := os.MkdirAll(tutDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	parts := make([]string, numParts)
+	for i := 0; i < numParts; i++ {
+		parts[i] = fmt.Sprintf("part-%02d.md", i+1)
+	}
+	tut := &store.Tutorial{
+		Slug:    slug,
+		Title:   "Test Series",
+		Status:  store.StatusVerified,
+		Series:  true,
+		Parts:   parts,
+		Created: time.Now(),
+	}
+	for _, p := range parts {
+		if err := os.WriteFile(filepath.Join(tutDir, p), []byte("# "+p), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := store.WriteMetadata(tutDir, tut); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSeriesPartPrevNext(t *testing.T) {
+	dir := t.TempDir()
+	makeSeriesTutorialWithParts(t, dir, "test-series", 3)
+	srv := serve.NewServer(dir)
+
+	cases := []struct {
+		part         string
+		wantPrevHref string // empty => no prev expected
+		wantNextHref string // empty => no next expected
+		wantCrumb    string // breadcrumb segment after the › separator
+	}{
+		{"part-01.md", "", "/test-series/part-02.md", "Part 1"},
+		{"part-02.md", "/test-series/part-01.md", "/test-series/part-03.md", "Part 2"},
+		{"part-03.md", "/test-series/part-02.md", "", "Part 3"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.part, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/test-series/"+tc.part, nil)
+			w := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(w, req)
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("GET /test-series/%s = %d, want %d", tc.part, w.Code, http.StatusOK)
+			}
+			body := w.Body.String()
+
+			wantCrumb := `<span class="sep">›</span>` + tc.wantCrumb
+			if !strings.Contains(body, wantCrumb) {
+				t.Errorf("missing breadcrumb segment %q", wantCrumb)
+			}
+
+			hasPrev := strings.Contains(body, `class="prev"`)
+			if tc.wantPrevHref == "" {
+				if hasPrev {
+					t.Errorf("expected no prev link on %s, found one", tc.part)
+				}
+			} else {
+				if !hasPrev {
+					t.Errorf("expected prev link on %s, found none", tc.part)
+				}
+				if !strings.Contains(body, `href="`+tc.wantPrevHref+`"`) {
+					t.Errorf("expected prev href %q in body", tc.wantPrevHref)
+				}
+			}
+
+			hasNext := strings.Contains(body, `class="next"`)
+			if tc.wantNextHref == "" {
+				if hasNext {
+					t.Errorf("expected no next link on %s, found one", tc.part)
+				}
+			} else {
+				if !hasNext {
+					t.Errorf("expected next link on %s, found none", tc.part)
+				}
+				if !strings.Contains(body, `href="`+tc.wantNextHref+`"`) {
+					t.Errorf("expected next href %q in body", tc.wantNextHref)
+				}
+			}
+		})
+	}
+}
+
+func TestNonSeriesNoPartNav(t *testing.T) {
+	dir := t.TempDir()
+	makeTestTutorial(t, dir, "single", false)
+	srv := serve.NewServer(dir)
+	req := httptest.NewRequest(http.MethodGet, "/single/", nil)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /single/ = %d, want %d", w.Code, http.StatusOK)
+	}
+	body := w.Body.String()
+	if strings.Contains(body, `class="part-nav"`) {
+		t.Error("non-series tutorial should not render part-nav block")
+	}
+	if strings.Contains(body, `<span class="sep">`) {
+		t.Error("non-series tutorial should not render breadcrumb separator")
 	}
 }
 
