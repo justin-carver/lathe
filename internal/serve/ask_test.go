@@ -62,8 +62,25 @@ func TestBuildAskPrompt(t *testing.T) {
 		if !strings.Contains(system, "Hello world") {
 			t.Errorf("system prompt missing article body:\n%s", system)
 		}
+		// Tutor framing — the model should know it's a hands-on tutor for
+		// this specific tutorial, not a generic Q&A bot.
+		if !strings.Contains(system, "tutor") {
+			t.Errorf("system prompt missing tutor framing:\n%s", system)
+		}
+		// On-task instruction — the model must not re-summarize the whole
+		// tutorial when the question is narrow.
+		if !strings.Contains(system, "specific question") {
+			t.Errorf("system prompt missing on-task (\"specific question\") instruction:\n%s", system)
+		}
+		if !strings.Contains(system, "Do NOT recap") {
+			t.Errorf("system prompt missing anti-recap instruction:\n%s", system)
+		}
+		// Read-only constraint must remain.
+		if !strings.Contains(system, "Do not write or modify any files") {
+			t.Errorf("system prompt missing read-only file constraint:\n%s", system)
+		}
 		// Non-series should not have the series block listing other parts.
-		if strings.Contains(system, "Other parts are also available") {
+		if strings.Contains(system, "Other parts in this series") {
 			t.Errorf("non-series system prompt unexpectedly mentions other parts:\n%s", system)
 		}
 		if user != "What is X?" {
@@ -81,6 +98,9 @@ func TestBuildAskPrompt(t *testing.T) {
 
 		if !strings.Contains(system, "Body of part 2") {
 			t.Errorf("system prompt missing article body:\n%s", system)
+		}
+		if !strings.Contains(system, "Other parts in this series") {
+			t.Errorf("series system prompt missing sibling-parts block:\n%s", system)
 		}
 		if !strings.Contains(system, "part-01.md") {
 			t.Errorf("system prompt missing sibling part-01.md in series block:\n%s", system)
@@ -106,8 +126,23 @@ func TestBuildAskPrompt(t *testing.T) {
 			Parts:  []string{"part-01.md"},
 		}
 		system, _ := buildAskPrompt(tut, "part-01.md", "Body", "Q?")
-		if strings.Contains(system, "Other parts are also available") {
+		if strings.Contains(system, "Other parts in this series") {
 			t.Errorf("solo series should not include the sibling-parts block:\n%s", system)
+		}
+	})
+
+	t.Run("deterministic", func(t *testing.T) {
+		// Same inputs must produce the same bytes — tests rely on this and
+		// it would be a regression for callers caching prompts.
+		tut := &store.Tutorial{
+			Title:  "Det",
+			Series: true,
+			Parts:  []string{"part-01.md", "part-02.md"},
+		}
+		s1, u1 := buildAskPrompt(tut, "part-01.md", "Body", "Q?")
+		s2, u2 := buildAskPrompt(tut, "part-01.md", "Body", "Q?")
+		if s1 != s2 || u1 != u2 {
+			t.Errorf("buildAskPrompt is non-deterministic")
 		}
 	})
 

@@ -294,10 +294,14 @@ func buildAskPrompt(tut *store.Tutorial, part, articleBody, question string) (sy
 		title = tut.Title
 	}
 
-	b.WriteString("You are a helpful assistant answering questions about a hands-on technical tutorial.\n\n")
-	fmt.Fprintf(&b, "The tutorial is titled %q.\n", title)
-	fmt.Fprintf(&b, "The user is currently reading the part %q.\n\n", part)
-	fmt.Fprintf(&b, "The full text of %q is included below.\n\n", part)
+	fmt.Fprintf(&b, "You are a hands-on tutor and reading companion for the tutorial titled %q. Your job is to help the user work through this specific tutorial — explaining concepts, unpacking code, and clarifying steps as they read.\n\n", title)
+	fmt.Fprintf(&b, "The user is currently reading the part %q. Its full text is included below.\n\n", part)
+
+	b.WriteString("How to answer:\n")
+	b.WriteString("- Answer the specific question the user asked. Stay on task.\n")
+	b.WriteString("- Do NOT recap or summarize the whole tutorial unless the user explicitly asks for an overview. If a question is narrow, give a narrow answer.\n")
+	b.WriteString("- Go as deep as the question warrants. There is no length cap — short questions deserve short answers, and substantive questions deserve substantive ones.\n")
+	b.WriteString("- Cite concrete sections, code snippets, or paragraphs from the part text below when they support your answer. Quote the relevant lines instead of paraphrasing them away.\n")
 
 	if tut != nil && tut.Series && len(tut.Parts) > 1 {
 		// Build the list of *other* parts so the model knows what it can
@@ -310,15 +314,14 @@ func buildAskPrompt(tut *store.Tutorial, part, articleBody, question string) (sy
 			siblings = append(siblings, p)
 		}
 		if len(siblings) > 0 {
-			b.WriteString("This tutorial is a series. Other parts are also available in the same directory and you have read-only Read/Glob/Grep access if you need to consult them:\n")
+			b.WriteString("- This tutorial is a series. When a question is better answered by a different part, point the user to it by name and (if useful) consult it via your read-only Read/Glob/Grep access. Other parts in this series:\n")
 			for _, p := range siblings {
 				fmt.Fprintf(&b, "  - %s\n", p)
 			}
-			b.WriteString("\n")
 		}
 	}
 
-	b.WriteString("Answer the user's question concisely and accurately, citing specific parts of the tutorial when relevant. Do not write or modify any files.\n\n")
+	b.WriteString("- Do not write or modify any files.\n\n")
 	fmt.Fprintf(&b, "--- BEGIN %s ---\n", part)
 	b.WriteString(articleBody)
 	if !strings.HasSuffix(articleBody, "\n") {
