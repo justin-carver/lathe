@@ -84,6 +84,32 @@
     .mermaid{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem;margin:1.25rem 0;text-align:center;overflow-x:auto}
     .mermaid:not([data-processed]){font-family:'JetBrains Mono','Fira Code',monospace;font-size:.8rem;text-align:left;white-space:pre;color:var(--text-faint)}
     .mermaid svg{max-width:100%;height:auto}
+    #askButton{position:fixed;bottom:1.5rem;right:1.5rem;z-index:50;background:var(--active-bg);color:var(--active-text);border:1px solid var(--border);font:inherit;font-weight:600;font-size:.9rem;padding:.65rem 1.1rem;border-radius:9999px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.15);transition:transform 150ms ease-out,box-shadow 150ms ease-out}
+    #askButton:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,0,0,0.2)}
+    #askButton:focus-visible{outline:2px solid var(--active-text);outline-offset:2px}
+    #askDrawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);background:var(--surface);border-left:1px solid var(--border);transform:translateX(100%);transition:transform 200ms ease-out;z-index:60;display:flex;flex-direction:column}
+    #askDrawer.open{transform:translateX(0)}
+    #askDrawer header{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:1rem 1.25rem;border-bottom:1px solid var(--border)}
+    #askDrawer header h3{font-size:1rem;font-weight:600;color:var(--text);margin:0;line-height:1.3;overflow:hidden;text-overflow:ellipsis}
+    #askClose{background:transparent;border:none;color:var(--text-subtle);font-size:1.5rem;line-height:1;cursor:pointer;padding:.25rem .5rem;border-radius:4px}
+    #askClose:hover{background:var(--hover-bg);color:var(--text)}
+    #askBackdrop{position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:55}
+    [data-theme="dark"] #askBackdrop{background:rgba(0,0,0,0.55)}
+    #askLog{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.75rem}
+    .ask-bubble{border-radius:8px;padding:.6rem .8rem;max-width:92%;white-space:pre-wrap;word-wrap:break-word;color:var(--text);font-size:.9rem;line-height:1.5}
+    .ask-question{align-self:flex-end;background:var(--active-bg);color:var(--active-text)}
+    .ask-answer{align-self:flex-start;background:var(--hover-bg)}
+    #askForm{display:flex;flex-direction:column;gap:.6rem;padding:1rem;border-top:1px solid var(--border)}
+    #askInput{width:100%;resize:vertical;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:.55rem .7rem;font:inherit;font-size:.9rem;line-height:1.4}
+    #askInput:focus{outline:2px solid var(--active-text);outline-offset:1px}
+    .ask-controls{display:flex;gap:.5rem;justify-content:flex-end}
+    #askSubmit,#askStop{font:inherit;font-size:.85rem;font-weight:500;padding:.45rem .9rem;border-radius:6px;border:1px solid var(--border);cursor:pointer}
+    #askSubmit{background:var(--active-bg);color:var(--active-text)}
+    #askSubmit:hover:not(:disabled){background:var(--hover-bg)}
+    #askStop{background:var(--badge-failed-bg);color:var(--badge-failed-text)}
+    #askStop:hover{filter:brightness(0.95)}
+    #askSubmit:disabled,#askStop:disabled{opacity:.5;cursor:not-allowed}
+    @media (max-width:600px){#askDrawer{width:100vw}}
   </style>
 </head>
 <body>
@@ -108,6 +134,22 @@
   </nav>
   <main>{{.Content}}</main>
 </div>
+<button type="button" id="askButton" aria-label="Ask a question about this tutorial">Ask</button>
+<aside id="askDrawer" data-slug="{{.Tutorial.Slug}}" data-part="{{.CurrentPart}}" aria-hidden="true">
+  <header>
+    <h3>Ask about "{{.Tutorial.Title}}"</h3>
+    <button type="button" id="askClose" aria-label="Close">×</button>
+  </header>
+  <div id="askLog" role="log" aria-live="polite"></div>
+  <form id="askForm">
+    <textarea id="askInput" placeholder="Ask a question…" rows="2" required></textarea>
+    <div class="ask-controls">
+      <button type="submit" id="askSubmit">Send</button>
+      <button type="button" id="askStop" hidden>Stop</button>
+    </div>
+  </form>
+</aside>
+<div id="askBackdrop" hidden></div>
 <script>
   (function(){
     var btn = document.getElementById('themeToggle');
@@ -157,6 +199,188 @@
     };
     s.onerror = function(){ console.warn('mermaid bundle failed to load'); };
     document.body.appendChild(s);
+  })();
+</script>
+<script>
+  (function(){
+    var drawer = document.getElementById('askDrawer');
+    var openBtn = document.getElementById('askButton');
+    var closeBtn = document.getElementById('askClose');
+    var backdrop = document.getElementById('askBackdrop');
+    var log = document.getElementById('askLog');
+    var form = document.getElementById('askForm');
+    var input = document.getElementById('askInput');
+    var submit = document.getElementById('askSubmit');
+    var stop = document.getElementById('askStop');
+    if (!drawer || !openBtn || !form) return;
+
+    var slug = drawer.getAttribute('data-slug') || '';
+    var part = drawer.getAttribute('data-part') || '';
+    var controller = null;
+
+    function openDrawer(){
+      drawer.classList.add('open');
+      drawer.setAttribute('aria-hidden', 'false');
+      backdrop.hidden = false;
+      setTimeout(function(){ try { input.focus(); } catch(e){} }, 50);
+    }
+    function closeDrawer(){
+      drawer.classList.remove('open');
+      drawer.setAttribute('aria-hidden', 'true');
+      backdrop.hidden = true;
+      if (controller) {
+        try { controller.abort(); } catch(e){}
+      }
+    }
+
+    openBtn.addEventListener('click', openDrawer);
+    closeBtn.addEventListener('click', closeDrawer);
+    backdrop.addEventListener('click', closeDrawer);
+    document.addEventListener('keydown', function(ev){
+      if (ev.key === 'Escape' && drawer.classList.contains('open')) {
+        closeDrawer();
+      }
+    });
+
+    function nearBottom(){
+      return (log.scrollHeight - log.scrollTop - log.clientHeight) < 50;
+    }
+    function pinBottom(){
+      log.scrollTop = log.scrollHeight;
+    }
+    function appendBubble(cls, text){
+      var was = nearBottom();
+      var el = document.createElement('div');
+      el.className = 'ask-bubble ' + cls;
+      el.textContent = text || '';
+      log.appendChild(el);
+      if (was) pinBottom();
+      return el;
+    }
+
+    function setSending(sending){
+      submit.disabled = sending;
+      stop.hidden = !sending;
+      input.disabled = sending;
+    }
+
+    input.addEventListener('keydown', function(ev){
+      if (ev.key === 'Enter' && !ev.shiftKey) {
+        ev.preventDefault();
+        form.requestSubmit();
+      }
+    });
+
+    stop.addEventListener('click', function(){
+      if (controller) {
+        try { controller.abort(); } catch(e){}
+      }
+    });
+
+    function parseSseFrame(frame){
+      var event = 'message';
+      var dataLines = [];
+      var lines = frame.split('\n');
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        if (!line) continue;
+        if (line.charAt(0) === ':') continue;
+        var idx = line.indexOf(':');
+        var field, value;
+        if (idx === -1) { field = line; value = ''; }
+        else {
+          field = line.substring(0, idx);
+          value = line.substring(idx + 1);
+          if (value.charAt(0) === ' ') value = value.substring(1);
+        }
+        if (field === 'event') event = value;
+        else if (field === 'data') dataLines.push(value);
+      }
+      return { event: event, data: dataLines.join('\n') };
+    }
+
+    form.addEventListener('submit', function(ev){
+      ev.preventDefault();
+      var question = (input.value || '').trim();
+      if (!question) return;
+
+      appendBubble('ask-question', question);
+      var answer = appendBubble('ask-answer', '');
+
+      input.value = '';
+      setSending(true);
+      pinBottom();
+
+      controller = new AbortController();
+      var url = '/-/ask/' + encodeURIComponent(slug) + '/' + encodeURIComponent(part);
+
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: question }),
+        signal: controller.signal
+      }).then(function(response){
+        if (!response.ok || !response.body) {
+          throw new Error('HTTP ' + response.status);
+        }
+        var reader = response.body.getReader();
+        var decoder = new TextDecoder();
+        var buffer = '';
+        var done = false;
+
+        function appendAnswer(text){
+          var was = nearBottom();
+          answer.textContent = answer.textContent + text;
+          if (was) pinBottom();
+        }
+
+        function processBuffer(){
+          var idx;
+          while ((idx = buffer.indexOf('\n\n')) !== -1) {
+            var frame = buffer.substring(0, idx);
+            buffer = buffer.substring(idx + 2);
+            if (!frame) continue;
+            var parsed = parseSseFrame(frame);
+            if (parsed.event === 'done') {
+              done = true;
+              return;
+            } else if (parsed.event === 'error') {
+              appendAnswer('\n\n[error: ' + parsed.data + ']');
+            } else {
+              appendAnswer(parsed.data);
+            }
+          }
+        }
+
+        function pump(){
+          return reader.read().then(function(result){
+            if (result.value) {
+              buffer += decoder.decode(result.value, { stream: true });
+              processBuffer();
+            }
+            if (done || result.done) {
+              if (!done && buffer) {
+                buffer += '\n\n';
+                processBuffer();
+              }
+              try { reader.cancel(); } catch(e){}
+              return;
+            }
+            return pump();
+          });
+        }
+        return pump();
+      }).catch(function(err){
+        if (err && err.name === 'AbortError') return;
+        var was = nearBottom();
+        answer.textContent = answer.textContent + '\n\n[error: ' + (err && err.message ? err.message : 'request failed') + ']';
+        if (was) pinBottom();
+      }).then(function(){
+        setSending(false);
+        controller = null;
+        try { input.focus(); } catch(e){}
+      });
+    });
   })();
 </script>
 </body>
