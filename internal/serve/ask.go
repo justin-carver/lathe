@@ -2,6 +2,7 @@ package serve
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +17,11 @@ import (
 // maxQuestionBytes caps the JSON request body for /-/ask. Questions are
 // expected to be short prose; anything bigger is almost certainly abuse.
 const maxQuestionBytes = 8 << 10 // 8 KiB
+
+// stderrCap bounds how much subprocess stderr we retain for the failure
+// path. Large enough to capture a useful diagnostic, small enough to keep
+// memory pressure bounded if `claude` becomes chatty.
+const stderrCap = 4 << 10 // 4 KiB
 
 // handleAsk streams an answer to a question about the part the user is
 // currently reading. It spawns a tightly-scoped read-only `claude` subprocess
@@ -94,9 +100,9 @@ func (s *Server) handleAsk(w http.ResponseWriter, r *http.Request) {
 	// Build the subprocess. Bind to the request context so client disconnect
 	// kills the subprocess for free — no goroutines needed.
 	cmd := exec.CommandContext(r.Context(), "claude",
-		"--bare",
 		"-p",
 		"--output-format", "stream-json",
+		"--verbose",
 		"--include-partial-messages",
 		"--add-dir", tutDir,
 		"--allowedTools", "Read,Glob,Grep",
@@ -110,9 +116,12 @@ func (s *Server) handleAsk(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "stream init failed", http.StatusInternalServerError)
 		return
 	}
-	// Drop stderr — without this, a chatty subprocess can fill the OS pipe
-	// buffer and deadlock the handler waiting on Wait().
-	cmd.Stderr = io.Discard
+	// Capture stderr into a bounded sink. A plain bytes.Buffer drains
+	// continuously (so the subprocess can't deadlock on a full OS pipe) but
+	// we cap total retained bytes so a chatty subprocess can't pressure
+	// memory. On terminal failure we surface the tail in the SSE error frame.
+	stderrBuf := &cappedBuffer{cap: stderrCap}
+	cmd.Stderr = stderrBuf
 
 	// SSE headers must go out before any frame is written. After the first
 	// write, we cannot change status — errors after this must be SSE-framed.
@@ -157,7 +166,11 @@ func (s *Server) handleAsk(w http.ResponseWriter, r *http.Request) {
 	// Drain stdout fully before Wait returns; reading the err afterward.
 	waitErr := cmd.Wait()
 	if waitErr != nil {
-		writeSSEError(w, flusher, "subprocess error")
+		msg := sanitizeStderr(stderrBuf.String())
+		if msg == "" {
+			msg = "subprocess error"
+		}
+		writeSSEError(w, flusher, msg)
 		return
 	}
 	fmt.Fprint(w, "event: done\ndata: {}\n\n")
@@ -180,6 +193,50 @@ func writeSSEData(w io.Writer, flusher http.Flusher, text string) {
 func writeSSEError(w io.Writer, flusher http.Flusher, msg string) {
 	fmt.Fprintf(w, "event: error\ndata: %s\n\n", msg)
 	flusher.Flush()
+}
+
+// cappedBuffer is an io.Writer that accumulates up to `cap` bytes and then
+// silently drops the rest. It always reports the full input as written so
+// the subprocess never sees backpressure (which would risk a deadlock on a
+// full OS pipe).
+type cappedBuffer struct {
+	buf bytes.Buffer
+	cap int
+}
+
+func (c *cappedBuffer) Write(p []byte) (int, error) {
+	remaining := c.cap - c.buf.Len()
+	if remaining <= 0 {
+		return len(p), nil
+	}
+	if len(p) > remaining {
+		c.buf.Write(p[:remaining])
+		return len(p), nil
+	}
+	return c.buf.Write(p)
+}
+
+func (c *cappedBuffer) String() string { return c.buf.String() }
+
+// sanitizeStderr extracts the most useful single-line diagnostic from a
+// captured stderr blob. We prefer the last non-empty line (errors typically
+// land at the end), strip CR/LF so the SSE `data:` framing stays valid, and
+// truncate to keep the wire frame bounded.
+func sanitizeStderr(s string) string {
+	s = strings.ReplaceAll(s, "\r", "")
+	var last string
+	for _, line := range strings.Split(s, "\n") {
+		if t := strings.TrimSpace(line); t != "" {
+			last = t
+		}
+	}
+	if last == "" {
+		return ""
+	}
+	if len(last) > 256 {
+		last = last[:256]
+	}
+	return last
 }
 
 // extractTextDelta walks the JSON envelope of a claude --output-format
