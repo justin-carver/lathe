@@ -140,3 +140,36 @@ func SlugToTitle(slug string) string {
 	}
 	return strings.Join(words, " ")
 }
+
+// PromoteIndexToPart renames index.md to part-01.md and updates metadata.Parts.
+// No-op if part-01.md already exists or index.md is absent.
+// Rename is done first; metadata is written only after a successful rename,
+// so a failure mid-operation leaves the tutorial in a consistent state.
+func PromoteIndexToPart(tutorialDir string) error {
+	indexPath := filepath.Join(tutorialDir, "index.md")
+	partPath := filepath.Join(tutorialDir, "part-01.md")
+
+	// stat the tutorial dir to detect missing dir early
+	if _, err := os.Stat(tutorialDir); err != nil {
+		return fmt.Errorf("tutorial dir: %w", err)
+	}
+
+	// already promoted or nothing to promote
+	if _, err := os.Stat(partPath); err == nil {
+		return nil
+	}
+	if _, err := os.Stat(indexPath); os.IsNotExist(err) {
+		return nil
+	}
+
+	if err := os.Rename(indexPath, partPath); err != nil {
+		return fmt.Errorf("rename index.md to part-01.md: %w", err)
+	}
+
+	tut, err := ReadMetadata(tutorialDir)
+	if err != nil {
+		return fmt.Errorf("read metadata after rename: %w", err)
+	}
+	tut.Parts = []string{"part-01.md"}
+	return WriteMetadata(tutorialDir, tut)
+}
