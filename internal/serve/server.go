@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/devenjarvis/lathe/internal/store"
@@ -47,6 +48,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /{slug}/{part}", s.handlePart)
 	mux.HandleFunc("POST /-/delete/{slug}", s.handleDelete)
 	mux.HandleFunc("POST /-/ask/{slug}/{part}", s.handleAsk)
+	mux.HandleFunc("POST /-/extend/{slug}", s.handleExtend)
 	return mux
 }
 
@@ -126,7 +128,7 @@ func (s *Server) handleTutorial(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if tut.Series && len(tut.Parts) > 0 {
+	if tut.IsSeries() && len(tut.Parts) > 0 {
 		http.Redirect(w, r, fmt.Sprintf("/%s/%s", slug, tut.Parts[0]), http.StatusFound)
 		return
 	}
@@ -193,7 +195,8 @@ func (s *Server) renderPart(w http.ResponseWriter, tut *store.Tutorial, tutDir, 
 	var prevPart, nextPart, prevTitle, nextTitle string
 	var prevNumber, nextNumber, currentNumber int
 	var seriesTOC []SeriesEntry
-	if tut.Series {
+	isLast := true
+	if tut.IsSeries() {
 		seriesTOC = make([]SeriesEntry, 0, len(tut.Parts))
 		for i, p := range tut.Parts {
 			seriesTOC = append(seriesTOC, SeriesEntry{
@@ -204,6 +207,7 @@ func (s *Server) renderPart(w http.ResponseWriter, tut *store.Tutorial, tutDir, 
 			})
 			if p == part {
 				currentNumber = i + 1
+				isLast = i == len(tut.Parts)-1
 				if i > 0 {
 					prevPart = tut.Parts[i-1]
 					prevTitle = store.SlugToTitle(strings.TrimSuffix(prevPart, ".md"))
@@ -234,10 +238,25 @@ func (s *Server) renderPart(w http.ResponseWriter, tut *store.Tutorial, tutDir, 
 		"NextNumber":        nextNumber,
 		"TOC":               toc,
 		"SeriesTOC":         seriesTOC,
+		"IsLastPart":        isLast,
+		"NextPartNumber":    len(tut.Parts) + 1,
+		"PendingPartNumber": pendingPartNumber(tut.PendingPart, len(tut.Parts)+1),
 	}); err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	buf.WriteTo(w)
+}
+
+func pendingPartNumber(pendingPart string, fallback int) int {
+	if pendingPart == "" {
+		return fallback
+	}
+	s := strings.TrimSuffix(strings.TrimPrefix(pendingPart, "part-"), ".md")
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return fallback
+	}
+	return n
 }

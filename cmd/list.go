@@ -39,7 +39,7 @@ var listCmd = &cobra.Command{
 				continue
 			}
 			parts := "single"
-			if tut.Series {
+			if tut.IsSeries() {
 				parts = fmt.Sprintf("%d parts", len(tut.Parts))
 			}
 			badge := statusBadge(tut.Status)
@@ -57,6 +57,8 @@ func statusBadge(s store.Status) string {
 		return "⏳ verifying"
 	case store.StatusFailed:
 		return "❌ failed"
+	case store.StatusExtending:
+		return "⏳ extending"
 	default:
 		return string(s)
 	}

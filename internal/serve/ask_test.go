@@ -27,7 +27,6 @@ func makeTutFixture(t *testing.T, dir, slug string, series bool) string {
 		Slug:    slug,
 		Title:   "Test Tutorial",
 		Status:  store.StatusVerified,
-		Series:  series,
 		Created: time.Now(),
 	}
 	if series {
@@ -50,7 +49,7 @@ func makeTutFixture(t *testing.T, dir, slug string, series bool) string {
 
 func TestBuildAskPrompt(t *testing.T) {
 	t.Run("non-series", func(t *testing.T) {
-		tut := &store.Tutorial{Title: "Single", Series: false}
+		tut := &store.Tutorial{Title: "Single"}
 		system, user := buildAskPrompt(tut, "index.md", "Hello world", "What is X?")
 
 		if !strings.Contains(system, "Single") {
@@ -90,9 +89,8 @@ func TestBuildAskPrompt(t *testing.T) {
 
 	t.Run("series", func(t *testing.T) {
 		tut := &store.Tutorial{
-			Title:  "Series",
-			Series: true,
-			Parts:  []string{"part-01.md", "part-02.md", "part-03.md"},
+			Title: "Series",
+			Parts: []string{"part-01.md", "part-02.md", "part-03.md"},
 		}
 		system, user := buildAskPrompt(tut, "part-02.md", "Body of part 2", "Why?")
 
@@ -121,9 +119,8 @@ func TestBuildAskPrompt(t *testing.T) {
 
 	t.Run("series with single part omits sibling block", func(t *testing.T) {
 		tut := &store.Tutorial{
-			Title:  "Solo",
-			Series: true,
-			Parts:  []string{"part-01.md"},
+			Title: "Solo",
+			Parts: []string{"part-01.md"},
 		}
 		system, _ := buildAskPrompt(tut, "part-01.md", "Body", "Q?")
 		if strings.Contains(system, "Other parts in this series") {
@@ -135,9 +132,8 @@ func TestBuildAskPrompt(t *testing.T) {
 		// Same inputs must produce the same bytes — tests rely on this and
 		// it would be a regression for callers caching prompts.
 		tut := &store.Tutorial{
-			Title:  "Det",
-			Series: true,
-			Parts:  []string{"part-01.md", "part-02.md"},
+			Title: "Det",
+			Parts: []string{"part-01.md", "part-02.md"},
 		}
 		s1, u1 := buildAskPrompt(tut, "part-01.md", "Body", "Q?")
 		s2, u2 := buildAskPrompt(tut, "part-01.md", "Body", "Q?")

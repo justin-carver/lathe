@@ -303,7 +303,7 @@ func buildAskPrompt(tut *store.Tutorial, part, articleBody, question string) (sy
 	b.WriteString("- Go as deep as the question warrants. There is no length cap — short questions deserve short answers, and substantive questions deserve substantive ones.\n")
 	b.WriteString("- Cite concrete sections, code snippets, or paragraphs from the part text below when they support your answer. Quote the relevant lines instead of paraphrasing them away.\n")
 
-	if tut != nil && tut.Series && len(tut.Parts) > 1 {
+	if tut != nil && tut.IsSeries() {
 		// Build the list of *other* parts so the model knows what it can
 		// consult via Read/Glob/Grep.
 		var siblings []string

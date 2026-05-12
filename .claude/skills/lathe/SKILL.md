@@ -13,20 +13,13 @@ The user says something like `/lathe build a digital synth in Zig` or `/lathe ho
 
 1. Ask: **"What's your experience level going in — beginner, some familiarity, or experienced in adjacent areas?"**
 2. If the topic is genuinely ambiguous (language? scale? embedded vs. server?), ask **one** clarifying question. Otherwise skip.
-3. Decide single-tutorial vs. series.
-4. Run the **Pre-flight** in your head — silently. Don't ask the user to approve the choices.
-5. Write.
-6. Hand off to the CLI.
+3. Run the **Pre-flight** in your head — silently. Don't ask the user to approve the choices.
+4. Write Part 1.
+5. Hand off to the CLI.
 
-## Single vs. series
+## Always write Part 1 only
 
-Generate a **series** when ALL of these hold:
-
-- The end product is non-trivial — a working compiler, synth, database, game engine.
-- There are 3+ natural milestones, each producing something runnable independently.
-- Done well, it would exceed ~2500 words.
-
-Otherwise, write a **single tutorial**.
+Every `/lathe` invocation produces exactly one file: `part-01.md`. Never write multiple parts in one shot and never write `index.md`. Readers add more parts via the "Add a new part" button in `lathe serve`, which gives them full control over pacing and direction.
 
 ## Pre-flight (private — do not ask the user)
 
@@ -82,17 +75,17 @@ Expected output:
 - If you see `<exact error text>`, you probably <short causal explanation, e.g. "skipped the import in §2">.
 - If you see `<exact error text>`, you probably <short causal explanation>.
 
-## What's next            (series only, except final part)
+## What's next
 
-One paragraph naming the unanswered question that the next part will answer.
+One paragraph naming the unanswered question a future part will answer. Include in every part — it invites the reader to continue.
 
-## Exercises               (final part of a series, or a single tutorial)
+## Exercises
 
 1. <specific>
 2. <specific>
 3. <specific>
 
-## Sources                 (final part of a series, or a single tutorial)
+## Sources
 
 1. [Title](url) — one sentence on why this source matters for the topic.
 2. ...
@@ -100,9 +93,7 @@ One paragraph naming the unanswered question that the next part will answer.
 (Numbered list. Only sources cited inline. Each entry: `[Title](url) — one sentence`. Group by primary docs / papers / deep-dives if more than ~5 entries.)
 ```
 
-For **series**, every part must open with *"By the end of this part, you'll have [specific, concrete thing]"* and close with a Checkpoint.
-
-**Spaced retrieval for Part 2 and later:** Before the opening promise, insert one `[!RECALL]` callout that asks the reader to reconstruct a *load-bearing* concept from the previous part — something the current part depends on. One sentence is enough: *"Quick recall: what does the ring buffer's `write_pos` field track, and why does it wrap at `BUFFER_SIZE`?"* The gap between reading sessions is a free spacing event; the callout turns it into a retrieval event.
+Every part opens with *"By the end of this part, you'll have [specific, concrete thing]"* and closes with a Checkpoint. Every part stands alone with its own `## Exercises` and `## Sources` — since any part may become the last one the reader sees, each must be independently complete.
 
 ## Openings
 
@@ -286,22 +277,21 @@ flowchart LR
 
 Every major section ends with a one-sentence forward-pointer naming the question the next section answers.
 
-Every tutorial — and the final part of a series — ends with **four** things:
+Every part ends with **four** things:
 
-1. **A send-off.** One short paragraph that invites the reader to leave the path you took. Nystrom's canonical: *"I want to leave you yearning to strike out on your own and wander all over that mountain."* Make yours specific to the domain.
-2. **A closing reflection.** One self-explanation prompt, in plain prose (not a callout): *"Before you move on: in two sentences, why does the ring buffer beat a channel here? Write it in your own words — the answer that satisfies a sceptical colleague."* Pick the single most important design decision in the tutorial and ask the reader to explain the *why*, not the *what*. Don't answer it for them.
+1. **A send-off (or forward hook).** For the final part: one short paragraph inviting the reader to leave the path you took. For non-final parts: a single forward-pointing sentence naming the question the next part will answer — lean into the cliffhanger.
+2. **A closing reflection.** One self-explanation prompt, in plain prose (not a callout): *"Before you move on: in two sentences, why does the ring buffer beat a channel here? Write it in your own words — the answer that satisfies a sceptical colleague."* Pick the single most important design decision in this part and ask the reader to explain the *why*, not the *what*. Don't answer it for them.
 3. **`## Exercises`**, numbered, 3–5 of them. Each specific enough that a motivated reader can start it in 30 seconds. *"Add FM modulation between two oscillators. Routing matrix is up to you — at minimum, let oscillator 2 modulate oscillator 1's frequency."* Not *"explore further."*
-4. **`## Sources`**, numbered, one entry per source used inline. Format: `[Title](url) — one sentence on why this source matters`. Group by primary docs / papers / deep-dives if more than ~5 entries. For a series, only the final part carries the consolidated Sources section; earlier parts still link inline but do not repeat the full list.
+4. **`## Sources`**, numbered, one entry per source used inline in *this part*. Format: `[Title](url) — one sentence on why this source matters`. Group by primary docs / papers / deep-dives if more than ~5 entries.
 
 ## Output files
 
 Write to `/tmp/lathe-<slug>/`. Slug is the topic in kebab-case.
 
 - "build a digital synth in Zig" → `/tmp/lathe-digital-synth-zig/`
-- Series: `part-01.md`, `part-02.md`, … (zero-padded so they sort)
-- Single: `index.md`
+- Always: `part-01.md` — one file, zero-padded so it sorts cleanly.
 
-Decide the slug before writing.
+Decide the slug before writing. Never write `index.md` or multiple parts.
 
 ## After writing
 
@@ -314,7 +304,7 @@ lathe store --verify /tmp/lathe-<slug>
 Then tell the user:
 
 - "**Tutorial saved.** Run `lathe serve` to open it at http://localhost:4242."
-- For a series: *"This is a [N]-part series. Part 1 ends with [X], Part 2 with [Y], …"*
+- "This is Part 1. To add more parts, open the tutorial in `lathe serve` and use **'Add a new part'** at the bottom — you can give guidance or let it continue naturally."
 - "Verification is running in the background — the ⏳ badge turns ✅ when it's done."
 
 ## Stay in session

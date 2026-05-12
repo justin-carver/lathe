@@ -20,8 +20,8 @@ func TestStoreSingleTutorial(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Store() error = %v", err)
 	}
-	if tut.Series {
-		t.Error("Store() Series = true, want false for single tutorial")
+	if tut.IsSeries() {
+		t.Error("Store() IsSeries() = true, want false for single tutorial")
 	}
 	if tut.Status != store.StatusVerified {
 		t.Errorf("Store() Status = %q, want %q", tut.Status, store.StatusVerified)
@@ -41,8 +41,8 @@ func TestStoreSeriesTutorial(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Store() error = %v", err)
 	}
-	if !tut.Series {
-		t.Error("Store() Series = false, want true for series")
+	if !tut.IsSeries() {
+		t.Error("Store() IsSeries() = false, want true for series")
 	}
 	if len(tut.Parts) != 3 {
 		t.Errorf("Store() Parts = %v, want 3 parts", tut.Parts)
@@ -156,5 +156,67 @@ func TestSlugToTitle(t *testing.T) {
 		if got != c.title {
 			t.Errorf("SlugToTitle(%q) = %q, want %q", c.slug, got, c.title)
 		}
+	}
+}
+
+func TestPromoteIndexToPartRenamesAndUpdatesMetadata(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "index.md"), []byte("# Hello"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	tut := &store.Tutorial{
+		Slug:   "test-tut",
+		Title:  "Test Tutorial",
+		Status: store.StatusVerified,
+	}
+	if err := store.WriteMetadata(dir, tut); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.PromoteIndexToPart(dir); err != nil {
+		t.Fatalf("PromoteIndexToPart() error = %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, "part-01.md")); err != nil {
+		t.Error("part-01.md should exist after promotion")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "index.md")); !os.IsNotExist(err) {
+		t.Error("index.md should be gone after promotion")
+	}
+	got, err := store.ReadMetadata(dir)
+	if err != nil {
+		t.Fatalf("ReadMetadata: %v", err)
+	}
+	if len(got.Parts) != 1 || got.Parts[0] != "part-01.md" {
+		t.Errorf("Parts = %v, want [part-01.md]", got.Parts)
+	}
+}
+
+func TestPromoteIndexToPartIdempotent(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "part-01.md"), []byte("# Hello"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	tut := &store.Tutorial{
+		Slug:   "test-tut",
+		Parts:  []string{"part-01.md"},
+		Status: store.StatusVerified,
+	}
+	if err := store.WriteMetadata(dir, tut); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.PromoteIndexToPart(dir); err != nil {
+		t.Fatalf("PromoteIndexToPart() error = %v (should be no-op)", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "part-01.md")); err != nil {
+		t.Error("part-01.md should still exist")
+	}
+}
+
+func TestPromoteIndexToPartFailsCleanly(t *testing.T) {
+	err := store.PromoteIndexToPart("/nonexistent/path/abc123xyz")
+	if err == nil {
+		t.Error("PromoteIndexToPart() on missing dir should return error")
 	}
 }

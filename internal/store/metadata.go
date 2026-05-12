@@ -13,16 +13,21 @@ const (
 	StatusVerifying Status = "verifying"
 	StatusVerified  Status = "verified"
 	StatusFailed    Status = "failed"
+	StatusExtending Status = "extending"
 )
 
 type Tutorial struct {
-	Slug    string    `json:"slug"`
-	Title   string    `json:"title"`
-	Topic   string    `json:"topic"`
-	Created time.Time `json:"created"`
-	Status  Status    `json:"status"`
-	Series  bool      `json:"series"`
-	Parts   []string  `json:"parts,omitempty"`
+	Slug        string    `json:"slug"`
+	Title       string    `json:"title"`
+	Topic       string    `json:"topic"`
+	Created     time.Time `json:"created"`
+	Status      Status    `json:"status"`
+	Parts       []string  `json:"parts,omitempty"`
+	PendingPart string    `json:"pending_part,omitempty"`
+}
+
+func (t *Tutorial) IsSeries() bool {
+	return len(t.Parts) > 1
 }
 
 type VerifyResult struct {

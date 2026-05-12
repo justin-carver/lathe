@@ -8,21 +8,21 @@ Lathe targets topics where good documentation is scarce — *"build a digital sy
 
 Two layers with a clean boundary:
 
-- **`/lathe` skill** (Claude Code) — generates the tutorial markdown. Asks one or two scoping questions, decides single-post vs. multi-part series, writes files to `/tmp/lathe-<slug>/`, then hands off to the CLI.
+- **`/lathe` skill** (Claude Code) — generates the tutorial markdown. Asks one or two scoping questions, writes `part-01.md` to `/tmp/lathe-<slug>/`, then hands off to the CLI. Additional parts are added on demand via the browser UI.
 - **`lathe` CLI** (Go) — copies the tutorial into `~/.lathe/tutorials/`, optionally spawns a background Claude subprocess that works through the tutorial step by step to verify it compiles and runs, and serves the rendered output at `http://localhost:4242`.
 
 ```
 User: /lathe "build a digital synth in Zig"
         │
         ▼
-  [/lathe skill]                     generates markdown, picks single vs series
+  [/lathe skill]                     generates part-01.md
         │
         ▼  lathe store --verify /tmp/lathe-<slug>
   [lathe CLI]                        copies files, kicks off background verify
         │
         ├── ~/.lathe/tutorials/<slug>/
         │       metadata.json        status: verifying → verified | failed
-        │       part-01.md, part-02.md, …  (or index.md for single)
+        │       part-01.md, part-02.md, …
         │
         └── [bg: claude + /lathe-verify skill in temp dir]
                 works through each step, runs every checkpoint command,
