@@ -47,6 +47,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /{slug}/{part}", s.handlePart)
 	mux.HandleFunc("POST /-/delete/{slug}", s.handleDelete)
 	mux.HandleFunc("POST /-/ask/{slug}/{part}", s.handleAsk)
+	mux.HandleFunc("POST /-/extend/{slug}", s.handleExtend)
 	return mux
 }
 
