@@ -1,0 +1,392 @@
+/* ============================================================================
+   Lathe design system — "Editorial textbook"
+   ----------------------------------------------------------------------------
+   Single source of truth for the reading + list UI. Authored as a real .css
+   file; embedded via go:embed and injected inline (like HighlightCSS) so first
+   paint is never blocked on a stylesheet request. See docs/design-system.md.
+
+   Structure:
+     1. Tokens        — :root (paper) + [data-theme="dark"] (ember)
+     2. Fonts         — @font-face, served locally from /_static/*.woff2
+     3. Base          — reset, reading typography, links, code, callouts
+     4. Components     — sidebar, TOC, series TOC, part-nav, verify/extend,
+                        ask drawer, progress bar, list-page cards
+     5. Responsive     — off-canvas sidebar, bottom dock, ask bottom-sheet
+   ============================================================================ */
+
+/* ---- 1. Tokens ----------------------------------------------------------- */
+:root{
+  /* Surfaces & ink (paper) */
+  --bg:#FBF7F0; --surface:#FFFDF8; --surface-sunken:#F3ECE0;
+  --border:#E4DAC9; --border-strong:#D6C9B4;
+  --text:#1B1714; --text-muted:#4A4038; --text-subtle:#6B5F53; --text-faint:#8A7C6C;
+  --accent:#B5451F; --accent-hover:#9A3817; --accent-soft:#F6E7DC;
+  --btn-on-accent:#FFFDF8;
+  --code-bg:#F3ECE0; --code-text:#2A2018;
+
+  /* Status badges (light) — warm-retoned semantics */
+  --badge-verified-bg:#E4ECD9; --badge-verified-text:#55692A;
+  --badge-verifying-bg:#F7E9CE; --badge-verifying-text:#8A5A1B;
+  --badge-failed-bg:#F4DCD2; --badge-failed-text:#963517;
+  --badge-extending-bg:#DDE5E8; --badge-extending-text:#3F5A66;
+  --badge-skipped-bg:#ECE3D5; --badge-skipped-text:#6B5F53;
+
+  /* Callouts (light) — bg / border / label */
+  --callout-note-bg:#E8EDF1; --callout-note-border:#6B8CAE; --callout-note-label:#3F5E80;
+  --callout-tip-bg:#E8EDDC; --callout-tip-border:#7E9A4E; --callout-tip-label:#56692A;
+  --callout-warn-bg:#F8ECD3; --callout-warn-border:#CE9A4A; --callout-warn-label:#8A5A1B;
+  --callout-design-bg:#ECE8F0; --callout-design-border:#8B7BA8; --callout-design-label:#5E4E7C;
+  --callout-aside-bg:transparent; --callout-aside-border:#D6C9B4; --callout-aside-label:#8A7C6C;
+  --callout-predict-bg:#F1E5EA; --callout-predict-border:#A86A86; --callout-predict-label:#7A4458;
+  --callout-recall-bg:#F7E7D6; --callout-recall-border:#D17A3F; --callout-recall-label:#A0501F;
+
+  /* Type */
+  --font-display:'Fraunces','Iowan Old Style',Georgia,serif;
+  --font-body:'Newsreader','Iowan Old Style',Charter,Georgia,serif;
+  --font-mono:'JetBrains Mono','Fira Code',ui-monospace,monospace;
+  --measure:66ch;
+
+  /* Spacing */
+  --space-1:.25rem; --space-2:.5rem; --space-3:.75rem; --space-4:1rem;
+  --space-5:1.5rem; --space-6:2rem; --space-7:3rem; --space-8:4rem;
+
+  /* Radius / shadow / motion */
+  --radius-sm:4px; --radius-md:8px; --radius-lg:12px;
+  --shadow-sm:0 1px 2px rgba(40,30,20,.07);
+  --shadow-md:0 4px 14px rgba(40,30,20,.12);
+  --transition:120ms ease-out;
+}
+
+[data-theme="dark"]{
+  --bg:#14110D; --surface:#231E18; --surface-sunken:#1A1611;
+  --border:#3D3429; --border-strong:#544838;
+  --text:#E9E1D3; --text-muted:#C3B7A4; --text-subtle:#9C8F7C; --text-faint:#7C7060;
+  --accent:#E89A5C; --accent-hover:#F2AE73; --accent-soft:#2A2017;
+  --btn-on-accent:#16130F;
+  --code-bg:#1B1712; --code-text:#E5DCCB;
+
+  --badge-verified-bg:#2A3320; --badge-verified-text:#A8C07A;
+  --badge-verifying-bg:#3A2C14; --badge-verifying-text:#E0B069;
+  --badge-failed-bg:#3A241B; --badge-failed-text:#E89A7C;
+  --badge-extending-bg:#1E2B2C; --badge-extending-text:#79B0AE;
+  --badge-skipped-bg:#2A2218; --badge-skipped-text:#9C8F7C;
+
+  --callout-note-bg:#182430; --callout-note-border:#4E7090; --callout-note-label:#8DAFC9;
+  --callout-tip-bg:#1E2A18; --callout-tip-border:#6E8A42; --callout-tip-label:#A8C07A;
+  --callout-warn-bg:#2C2310; --callout-warn-border:#B58A3E; --callout-warn-label:#E0B069;
+  --callout-design-bg:#221E2E; --callout-design-border:#7A6A96; --callout-design-label:#BCAEDB;
+  --callout-aside-bg:transparent; --callout-aside-border:#463D31; --callout-aside-label:#7C7060;
+  --callout-predict-bg:#2A1E26; --callout-predict-border:#9A6076; --callout-predict-label:#D6A6BC;
+  --callout-recall-bg:#2C1E12; --callout-recall-border:#BE7038; --callout-recall-label:#E0A36A;
+
+  --shadow-sm:0 1px 2px rgba(0,0,0,.30);
+  --shadow-md:0 4px 14px rgba(0,0,0,.45);
+}
+
+/* ---- 2. Fonts ------------------------------------------------------------
+   Latin-subset woff2, served from /_static/ (flat names; the on-disk files
+   live under static/fonts/). font-display:swap so the serif fallbacks paint
+   immediately and the bundled faces swap in when ready. */
+@font-face{font-family:'Fraunces';font-style:normal;font-weight:300 700;font-display:swap;src:url('/_static/fraunces.woff2') format('woff2');}
+@font-face{font-family:'Newsreader';font-style:normal;font-weight:300 700;font-display:swap;src:url('/_static/newsreader.woff2') format('woff2');}
+@font-face{font-family:'Newsreader';font-style:italic;font-weight:300 700;font-display:swap;src:url('/_static/newsreader-italic.woff2') format('woff2');}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 700;font-display:swap;src:url('/_static/jetbrains-mono.woff2') format('woff2');}
+
+/* ---- 3. Base ------------------------------------------------------------- */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden}
+body{
+  font-family:var(--font-body);
+  background:var(--bg);color:var(--text);
+  line-height:1.6;
+  font-size:clamp(1rem,.95rem + .2vw,1.0625rem);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  font-optical-sizing:auto;
+}
+
+/* Reading-progress bar (fixed, above sticky header, below ask drawer) */
+#progressBar{position:fixed;top:0;left:0;right:0;height:3px;background:transparent;z-index:70;pointer-events:none}
+#progressBar > div{height:100%;background:var(--accent);transform:scaleX(0);transform-origin:left center;will-change:transform}
+
+/* Layout shell (reading page) */
+.layout{display:flex;min-height:100vh}
+
+/* Reading column — measure-bound for comfortable line length */
+main{
+  flex:1;width:100%;max-width:calc(var(--measure) + 7rem);
+  padding:clamp(1.75rem,1.2rem + 2vw,3rem) clamp(1.2rem,.7rem + 2.5vw,2.5rem);
+  font-size:1.125rem;line-height:1.7;
+}
+main > p,main > ul,main > ol,main > blockquote,main > .callout{max-width:var(--measure)}
+
+/* Headings — Fraunces display, tighter leading, generous rhythm above */
+h1,h2,h3,h4,h5,h6{font-family:var(--font-display);color:var(--text);font-weight:600;line-height:1.18;letter-spacing:-.01em}
+h1{font-size:clamp(1.7rem,1.4rem + 1.4vw,2.1rem);margin-bottom:1.5rem}
+h2{font-size:clamp(1.3rem,1.15rem + .7vw,1.5rem);margin:2.5rem 0 .85rem;line-height:1.22}
+h3{font-size:clamp(1.1rem,1.03rem + .35vw,1.2rem);margin:1.9rem 0 .6rem;color:var(--text-muted);line-height:1.3}
+/* Anchor offset so headings aren't flush to the top when jumped to. */
+h2[id],h3[id]{scroll-margin-top:1rem}
+
+p{margin-bottom:1.05rem;color:var(--text-muted)}
+em{font-style:italic}
+strong{font-weight:700;color:var(--text)}
+a{color:var(--accent);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px;text-decoration-color:var(--accent);text-decoration-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+a:hover{color:var(--accent-hover);text-decoration-color:currentColor}
+
+ul,ol{margin:.85rem 0 .85rem 1.5rem;color:var(--text-muted)}
+li{margin:.3rem 0}
+li::marker{color:var(--text-faint)}
+blockquote{border-left:3px solid var(--border-strong);padding:.5rem 1rem;margin:1.25rem 0;color:var(--text-subtle);font-style:italic}
+
+hr{border:none;border-top:1px solid var(--border);margin:2.5rem 0}
+
+img{max-width:100%;height:auto;border-radius:var(--radius-md)}
+
+table{border-collapse:collapse;margin:1.25rem 0;font-size:.95em;max-width:var(--measure)}
+th,td{border:1px solid var(--border);padding:.45rem .7rem;text-align:left}
+th{background:var(--surface-sunken);font-family:var(--font-display);font-weight:600;color:var(--text)}
+
+/* Code */
+code{font-family:var(--font-mono);font-size:.84em;background:var(--code-bg);padding:.1rem .35rem;border-radius:var(--radius-sm);color:var(--code-text);overflow-wrap:anywhere;word-wrap:break-word}
+pre{border-radius:var(--radius-md);margin:1.4rem 0;padding:.95rem 1.1rem;overflow-x:auto;border:1px solid var(--border);background:var(--code-bg);color:var(--code-text);font-size:.9rem;line-height:1.55;transition:box-shadow var(--transition)}
+pre code{background:none;padding:0;color:inherit;font-size:1em;overflow-wrap:normal;word-wrap:normal;white-space:pre}
+/* Chroma puts its style background on .chroma (the <pre>); a more-specific
+   selector keeps the warm --code-bg token in control of the container in both
+   themes, so only chroma's syntax-token hues come through. */
+pre.chroma{background:var(--code-bg)}
+[data-theme="dark"] pre.chroma{background:var(--code-bg)}
+/* Subtle right-edge fade hints horizontal scrollability — inset shadow stays
+   pinned to the visible right edge regardless of scroll position. */
+pre[data-overflow="true"]{box-shadow:inset -18px 0 14px -12px rgba(40,30,20,.20)}
+[data-theme="dark"] pre[data-overflow="true"]{box-shadow:inset -18px 0 14px -12px rgba(0,0,0,.55)}
+
+/* Callouts (emitted by renderer.go as <aside class="callout callout-TYPE">) */
+.callout{margin:1.6rem 0;padding:.9rem 1.1rem .95rem;border-left:3px solid;border-radius:var(--radius-md)}
+.callout > p{margin-bottom:.5rem;color:var(--text-muted)}
+.callout > p:last-child{margin-bottom:0}
+.callout .callout-label{font-family:var(--font-display);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem}
+.callout-note{background:var(--callout-note-bg);border-color:var(--callout-note-border)}
+.callout-note .callout-label{color:var(--callout-note-label)}
+.callout-tip{background:var(--callout-tip-bg);border-color:var(--callout-tip-border)}
+.callout-tip .callout-label{color:var(--callout-tip-label)}
+.callout-warning,.callout-headsup{background:var(--callout-warn-bg);border-color:var(--callout-warn-border)}
+.callout-warning .callout-label,.callout-headsup .callout-label{color:var(--callout-warn-label)}
+.callout-designnote{background:var(--callout-design-bg);border-color:var(--callout-design-border)}
+.callout-designnote .callout-label{color:var(--callout-design-label)}
+.callout-aside{background:var(--callout-aside-bg);border-color:var(--callout-aside-border);font-style:italic}
+.callout-aside .callout-label{color:var(--callout-aside-label);font-style:normal}
+.callout-predict{background:var(--callout-predict-bg);border-color:var(--callout-predict-border)}
+.callout-predict .callout-label{color:var(--callout-predict-label)}
+.callout-recall{background:var(--callout-recall-bg);border-color:var(--callout-recall-border)}
+.callout-recall .callout-label{color:var(--callout-recall-label)}
+
+/* Mermaid diagrams */
+.mermaid{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem;margin:1.4rem 0;text-align:center;overflow-x:auto;max-width:100%}
+.mermaid:not([data-processed]){font-family:var(--font-mono);font-size:.8rem;text-align:left;white-space:pre;color:var(--text-faint)}
+.mermaid svg{max-width:100%;height:auto}
+
+/* ---- 4. Components ------------------------------------------------------- */
+
+/* Status badge (shared: sidebar + list cards) */
+.badge{display:inline-block;font-family:var(--font-display);font-size:.7rem;font-weight:600;letter-spacing:.01em;padding:.2rem .5rem;border-radius:var(--radius-sm);line-height:1.4}
+.badge.verified{background:var(--badge-verified-bg);color:var(--badge-verified-text)}
+.badge.verifying{background:var(--badge-verifying-bg);color:var(--badge-verifying-text)}
+.badge.failed{background:var(--badge-failed-bg);color:var(--badge-failed-text)}
+.badge.extending{background:var(--badge-extending-bg);color:var(--badge-extending-text)}
+.badge.skipped{background:var(--badge-skipped-bg);color:var(--badge-skipped-text)}
+
+/* Button — the one button primitive. Variants: primary (accent fill), ghost
+   (outline), danger (failed tint). Modifiers: pill (rounded), sm (compact).
+   Used by every action: verify/extend submit, ask send/stop, the floating &
+   dock Ask buttons. */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;font-family:var(--font-display);font-weight:600;font-size:.9rem;line-height:1.1;padding:.55rem 1.1rem;border-radius:var(--radius-md);border:1px solid transparent;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background var(--transition),border-color var(--transition),color var(--transition),transform 150ms ease-out}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:var(--btn-on-accent);border-color:var(--accent)}
+.btn-primary:hover:not(:disabled){background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn-ghost{background:transparent;color:var(--text-subtle);border-color:var(--border)}
+.btn-ghost:hover:not(:disabled){background:var(--surface-sunken);color:var(--text)}
+.btn-danger{background:var(--badge-failed-bg);color:var(--badge-failed-text);border-color:transparent}
+.btn-danger:hover:not(:disabled){filter:brightness(.96)}
+.btn-pill{border-radius:9999px}
+.btn-sm{font-size:.82rem;padding:.42rem .85rem}
+
+/* Theme-toggle button (shared) */
+.theme-toggle{background:transparent;border:1px solid var(--border);color:var(--text-subtle);font-family:var(--font-display);font-size:.8rem;padding:.4rem .6rem;border-radius:var(--radius-sm);cursor:pointer;display:inline-flex;align-items:center;gap:.4rem;transition:background var(--transition),color var(--transition)}
+.theme-toggle:hover{background:var(--surface-sunken);color:var(--text)}
+.theme-toggle .icon{font-size:.95rem;line-height:1}
+[data-theme="dark"] .theme-toggle .icon-light,[data-theme="light"] .theme-toggle .icon-dark,:root:not([data-theme]) .theme-toggle .icon-dark{display:none}
+
+/* Sidebar (reading page). Scoped to #sidebar, NOT a bare `nav` selector — the
+   part-nav is also a <nav>, and a bare selector would leak height:100vh, the
+   264px width, sticky positioning, and column direction onto it. */
+#sidebar{width:264px;background:var(--surface);border-right:1px solid var(--border);padding:1.6rem 1.4rem;position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;z-index:80}
+#sidebar h2{font-family:var(--font-display);font-size:1.05rem;font-weight:600;color:var(--text);margin-bottom:.6rem;line-height:1.25;letter-spacing:-.01em}
+#sidebar .badge{margin-bottom:1.4rem}
+#sidebar ul{list-style:none}
+#sidebar li{margin:.2rem 0}
+#sidebar a{display:block;font-size:.85rem;color:var(--text-subtle);text-decoration:none;padding:.35rem .6rem;border-radius:var(--radius-sm);transition:background var(--transition),color var(--transition)}
+#sidebar a:hover{background:var(--surface-sunken);color:var(--text)}
+#sidebar a.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.back-link{display:inline-flex;align-items:center;gap:.3rem;font-size:.78rem;color:var(--text-faint);text-decoration:none;padding:.2rem .25rem;margin:-.2rem 0 .9rem;border-radius:var(--radius-sm)}
+.back-link:hover{color:var(--accent);background:transparent}
+#sidebar .toc-label{font-family:var(--font-display);font-size:.7rem;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.07em;margin:.9rem .4rem .35rem;line-height:1.3}
+#sidebar ul.toc{list-style:none;margin:0;padding:0}
+#sidebar ul.toc li{margin:.1rem 0}
+#sidebar ul.toc a{font-size:.82rem;line-height:1.4;padding:.32rem .6rem;color:var(--text-subtle)}
+#sidebar ul.toc a:hover{background:var(--surface-sunken);color:var(--text)}
+#sidebar .theme-toggle{margin-top:auto;width:100%}
+
+/* Off-canvas sidebar backdrop (narrow only) */
+#sidebarBackdrop{position:fixed;inset:0;background:rgba(27,23,20,.30);z-index:75;display:none}
+[data-theme="dark"] #sidebarBackdrop{background:rgba(0,0,0,.55)}
+
+/* Sticky narrow-screen top bar */
+#topBar{display:none;position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--border);padding:.55rem .85rem;z-index:50;align-items:center;gap:.7rem}
+#hamburger{background:transparent;border:1px solid var(--border);color:var(--text-subtle);font:inherit;cursor:pointer;padding:.3rem .55rem;border-radius:var(--radius-sm);line-height:1;font-size:1.15rem;flex-shrink:0}
+#hamburger:hover{background:var(--surface-sunken);color:var(--text)}
+#topBar .crumb{font-size:.85rem;color:var(--text-subtle);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+#topBar .crumb strong{color:var(--text);font-weight:600;font-family:var(--font-display)}
+#topBar .crumb .sep{margin:0 .35rem;color:var(--text-faint)}
+
+/* Series TOC at bottom of part */
+.series-toc{margin-top:3rem;padding-top:1.6rem;border-top:1px solid var(--border)}
+.series-toc > h2{font-family:var(--font-display);font-size:1.05rem;font-weight:600;margin:0 0 .8rem;color:var(--text);line-height:1.3;letter-spacing:-.01em}
+.series-toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.45rem}
+.series-toc li{margin:0}
+.series-toc a,.series-toc .current-row{display:flex;gap:.65rem;align-items:baseline;padding:.6rem .9rem;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface);color:var(--text-subtle);text-decoration:none;font-size:.95rem;line-height:1.35;transition:color var(--transition),border-color var(--transition),background var(--transition)}
+.series-toc a:hover{color:var(--accent);border-color:var(--border-strong);background:var(--surface-sunken)}
+.series-toc .current-row{color:var(--accent);border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.series-toc .part-num{font-family:var(--font-display);font-size:.7rem;font-weight:700;letter-spacing:.05em;color:var(--text-faint);text-transform:uppercase;flex-shrink:0;min-width:3.4rem}
+.series-toc .current-row .part-num{color:var(--accent)}
+
+/* Inline prev/next part navigation — compact buttons pinned to each edge
+   (prev left, next right), sized to content rather than stretched full-width. */
+.part-nav{display:flex;justify-content:space-between;gap:.75rem;margin-top:1.6rem;padding-top:1.6rem;border-top:1px solid var(--border)}
+.part-nav a{min-width:0;max-width:min(46%,20rem);text-decoration:none;color:var(--text-subtle);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:.5rem .8rem;display:flex;flex-direction:column;gap:.1rem;transition:color var(--transition),border-color var(--transition),background var(--transition)}
+.part-nav a:hover{color:var(--accent);border-color:var(--border-strong);background:var(--surface-sunken)}
+.part-nav .label{font-family:var(--font-display);font-size:.72rem;font-weight:700;letter-spacing:.03em;color:var(--text-faint)}
+.part-nav .title{font-size:.92rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.part-nav .prev{align-items:flex-start}
+.part-nav .next{margin-left:auto;text-align:right;align-items:flex-end}
+.part-nav .spacer{display:none}
+
+/* Extend / verify sections */
+.extend-section{margin-top:2rem;padding-top:1.6rem;border-top:1px solid var(--border)}
+.extend-section h3{font-family:var(--font-display);font-size:1.05rem;font-weight:600;margin:0 0 .8rem;color:var(--text)}
+#extendForm{display:flex;flex-direction:column;gap:.6rem}
+#extendForm textarea{width:100%;padding:.6rem .75rem;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface);color:var(--text);font-family:var(--font-body);font-size:.95rem;resize:vertical;min-height:4.5rem}
+#extendForm textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
+.extend-error{font-size:.85rem;color:var(--badge-failed-text);min-height:1.2em}
+.extending-panel{color:var(--text-muted)}
+.extending-panel .muted{font-size:.85rem;color:var(--text-faint);margin-top:.25rem}
+.verify-section{margin-top:2rem;padding-top:1.6rem;border-top:1px solid var(--border)}
+.verify-error{font-size:.85rem;color:var(--badge-failed-text);min-height:1.2em;margin-top:.5rem}
+.verifying-panel{color:var(--text-muted)}
+.verifying-panel .muted{font-size:.85rem;color:var(--text-faint);margin-top:.25rem}
+.verify-failure code{word-break:break-all}
+
+/* The extend submit sits in a flex-column form; keep it left-aligned. (Visual
+   style comes from .btn .btn-primary in the markup.) */
+#extendForm .btn{align-self:flex-start}
+
+/* Floating Ask button (wide screens) — .btn .btn-primary .btn-pill in markup;
+   this only adds the fixed positioning, shadow, and lift-on-hover. */
+#askButton{position:fixed;bottom:1.5rem;right:1.5rem;z-index:40;box-shadow:var(--shadow-md)}
+#askButton:hover{transform:translateY(-2px)}
+
+/* Bottom action dock (narrow only) */
+#bottomDock{display:none;position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:.55rem .85rem;z-index:50;justify-content:space-between;align-items:center;gap:.7rem}
+#bottomDock .theme-toggle .label{display:none}
+
+/* Ask drawer (wide: right-side slide-in) */
+#askDrawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);background:var(--surface);border-left:1px solid var(--border);transform:translateX(100%);transition:transform 200ms ease-out;z-index:90;display:flex;flex-direction:column}
+#askDrawer.open{transform:translateX(0)}
+#askDrawer header{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:1rem 1.25rem;border-bottom:1px solid var(--border)}
+#askDrawer header h3{font-family:var(--font-display);font-size:1rem;font-weight:600;color:var(--text);margin:0;line-height:1.3;overflow:hidden;text-overflow:ellipsis}
+#askClose{background:transparent;border:none;color:var(--text-subtle);font-size:1.5rem;line-height:1;cursor:pointer;padding:.25rem .5rem;border-radius:var(--radius-sm)}
+#askClose:hover{background:var(--surface-sunken);color:var(--text)}
+#askBackdrop{position:fixed;inset:0;background:rgba(27,23,20,.30);z-index:85}
+[data-theme="dark"] #askBackdrop{background:rgba(0,0,0,.55)}
+#askLog{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.75rem}
+.ask-bubble{border-radius:var(--radius-md);padding:.6rem .8rem;max-width:92%;word-wrap:break-word;color:var(--text);font-size:.92rem;line-height:1.55}
+/* Question bubbles and the text fallback for answers both need pre-wrap so
+   SSE-streamed `\n`s render. Markdown-rendered answers don't — the HTML
+   structure carries line breaks and pre-wrap there would surface inter-element
+   whitespace as ugly blank lines. */
+.ask-question{align-self:flex-end;background:var(--accent-soft);color:var(--accent);white-space:pre-wrap}
+.ask-answer{align-self:flex-start;background:var(--surface-sunken);white-space:pre-wrap}
+.ask-answer.markdown{white-space:normal}
+.ask-answer.markdown > :first-child{margin-top:0}
+.ask-answer.markdown > :last-child{margin-bottom:0}
+.ask-answer.markdown p{margin-bottom:.5rem;color:var(--text)}
+.ask-answer.markdown ul,.ask-answer.markdown ol{margin:.4rem 0 .4rem 1.25rem}
+.ask-answer.markdown pre{margin:.6rem 0}
+/* Thinking-dots placeholder: shown in the answer bubble between submit and the
+   first streamed chunk. Three small circles with a staggered pulse. Reduced-
+   motion users get static dots (essentially a "…"). */
+.ask-bubble.thinking{display:inline-flex;align-items:center;gap:.32rem;padding:.85rem 1rem;white-space:normal}
+.ask-bubble.thinking .dot{width:.4rem;height:.4rem;border-radius:50%;background:var(--text-faint);opacity:.35;animation:askDotPulse 1.2s infinite ease-in-out}
+.ask-bubble.thinking .dot:nth-child(2){animation-delay:.15s}
+.ask-bubble.thinking .dot:nth-child(3){animation-delay:.3s}
+@keyframes askDotPulse{0%,80%,100%{opacity:.25;transform:scale(.85)}40%{opacity:1;transform:scale(1)}}
+@media (prefers-reduced-motion: reduce){
+  .ask-bubble.thinking .dot{animation:none;opacity:.55;transform:none}
+}
+#askForm{display:flex;flex-direction:column;gap:.6rem;padding:1rem;border-top:1px solid var(--border)}
+#askInput{width:100%;resize:vertical;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-md);padding:.55rem .7rem;font-family:var(--font-body);font-size:.92rem;line-height:1.4}
+#askInput:focus{outline:2px solid var(--accent);outline-offset:1px}
+.ask-controls{display:flex;gap:.5rem;justify-content:flex-end}
+/* #askSubmit / #askStop are .btn .btn-sm (primary / danger) in the markup. */
+
+/* ---- List page (body.list) ---------------------------------------------- */
+body.list{max-width:46rem;margin:clamp(1.5rem,.9rem + 2vw,3rem) auto;padding:0 clamp(.9rem,.4rem + 2vw,1.5rem)}
+body.list .header{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap}
+body.list .header > div{min-width:0;flex:1 1 auto}
+body.list h1{font-family:var(--font-display);font-size:clamp(1.7rem,1.3rem + 1.4vw,2.2rem);margin-bottom:.35rem;line-height:1.15;letter-spacing:-.015em}
+.subtitle{color:var(--text-faint);margin-bottom:2.25rem;font-size:.98rem;font-style:italic}
+.tutorial{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem 1.25rem;margin:.75rem 0;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;transition:border-color var(--transition),box-shadow var(--transition)}
+.tutorial:hover{border-color:var(--border-strong);box-shadow:var(--shadow-sm)}
+.tutorial > div:first-child{min-width:0;flex:1 1 14rem}
+.tutorial a{text-decoration:none;color:var(--accent);font-family:var(--font-display);font-weight:600;font-size:1.08rem;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.tutorial a:hover{color:var(--accent-hover);text-decoration:underline;text-underline-offset:2px}
+.meta{font-size:.8rem;color:var(--text-faint);margin-top:.25rem}
+.tutorial-actions{display:flex;align-items:center;gap:.6rem;flex-shrink:0;flex-wrap:wrap}
+.delete-form{margin:0}
+.delete-btn{background:transparent;border:1px solid var(--border);color:var(--text-faint);font:inherit;font-size:1rem;line-height:1;min-width:32px;min-height:32px;padding:.15rem .55rem;border-radius:var(--radius-sm);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:color var(--transition),border-color var(--transition),background var(--transition)}
+.delete-btn:hover{color:var(--badge-failed-text);border-color:var(--badge-failed-text);background:var(--badge-failed-bg)}
+.empty{color:var(--text-faint);text-align:center;padding:3rem 1rem;font-size:1rem;font-style:italic}
+.empty code{background:var(--code-bg);color:var(--code-text);padding:.1rem .35rem;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:.85em;font-style:normal}
+
+/* ---- 5. Responsive ------------------------------------------------------- */
+
+/* Narrow viewport (<900px): off-canvas sidebar, sticky header, bottom dock */
+@media (max-width:899px){
+  .layout{display:block}
+  #sidebar{position:fixed;top:0;left:0;height:100vh;width:min(280px,82vw);transform:translateX(-100%);transition:transform 200ms ease-out;border-right:1px solid var(--border)}
+  [data-sidebar="open"] #sidebar{transform:translateX(0)}
+  [data-sidebar="open"] #sidebarBackdrop{display:block}
+  main{max-width:none;padding-bottom:5.5rem}
+  #topBar{display:flex}
+  #bottomDock{display:flex}
+  #askButton{display:none}
+  #sidebar .theme-toggle{display:none}
+}
+
+/* Bottom-sheet Ask drawer (≤700px) */
+@media (max-width:700px){
+  #askDrawer{top:auto;left:0;right:0;width:100%;height:80vh;border-left:none;border-top:1px solid var(--border);border-radius:var(--radius-lg) var(--radius-lg) 0 0;transform:translateY(100%)}
+  #askDrawer.open{transform:translateY(0)}
+}
+
+/* List page: stack header + cards on small screens */
+@media (max-width:499px){
+  body.list .header{flex-direction:column;align-items:stretch}
+  body.list .header > div{flex:initial}
+  body.list .theme-toggle{align-self:flex-start}
+  .subtitle{margin-bottom:1.25rem}
+}
+@media (max-width:419px){
+  .tutorial{flex-direction:column;align-items:stretch}
+  .tutorial-actions{justify-content:space-between}
+}

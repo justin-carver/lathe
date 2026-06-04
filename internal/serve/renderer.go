@@ -26,9 +26,14 @@ type TOCEntry struct {
 	Text string
 }
 
+// Chroma syntax styles, chosen to harmonize with the warm "paper"/"ember"
+// palette: tango's muted browns/olives in light, gruvbox's warm ambers/oranges
+// in dark. Only the syntax-token hues come from these — the code-block
+// container background is owned by our --code-bg token (see pre.chroma in
+// styles.css), so chroma's own background never shows through.
 const (
-	lightStyle = "github"
-	darkStyle  = "monokai"
+	lightStyle = "tango"
+	darkStyle  = "gruvbox"
 )
 
 // mermaidBlock matches a fenced code block whose info string is "mermaid".
@@ -197,27 +202,56 @@ func preprocessMermaid(src []byte) []byte {
 
 func HighlightCSS() (template.CSS, error) {
 	formatter := chromahtml.New(chromahtml.WithClasses(true))
-	var out bytes.Buffer
 
 	light := styles.Get(lightStyle)
 	if light == nil {
 		return "", fmt.Errorf("chroma style %q not found", lightStyle)
 	}
-	if err := formatter.WriteCSS(&out, light); err != nil {
+	var lightBuf bytes.Buffer
+	if err := formatter.WriteCSS(&lightBuf, light); err != nil {
 		return "", err
 	}
 
-	var darkBuf bytes.Buffer
 	dark := styles.Get(darkStyle)
 	if dark == nil {
 		return "", fmt.Errorf("chroma style %q not found", darkStyle)
 	}
+	var darkBuf bytes.Buffer
 	if err := formatter.WriteCSS(&darkBuf, dark); err != nil {
 		return "", err
 	}
-	out.WriteString(scopeCSS(darkBuf.String(), `[data-theme="dark"]`))
+
+	// Scope EACH palette to its own theme. The light rules must be scoped too:
+	// if they stay global, any token the (less exhaustive) dark style leaves
+	// undefined falls through to the light color — often near-black — and is
+	// unreadable on the dark code background. Scoping makes undefined tokens
+	// fall back to the style's own readable default foreground instead.
+	//
+	// stripWrapperBackground drops chroma's PreWrapper background so the warm
+	// --code-bg token (styles.css) owns the container in both themes; only the
+	// syntax-token hues come through.
+	var out strings.Builder
+	out.WriteString(stripWrapperBackground(scopeCSS(lightBuf.String(), `:root:not([data-theme="dark"])`)))
+	out.WriteString(stripWrapperBackground(scopeCSS(darkBuf.String(), `[data-theme="dark"]`)))
 
 	return template.CSS(out.String()), nil
+}
+
+// wrapperBackground matches a single `background-color: …;` declaration, used to
+// strip chroma's container background from the PreWrapper (.chroma) and .bg
+// rules so our --code-bg token controls the code-block background instead.
+var wrapperBackground = regexp.MustCompile(`background-color:[^;}]*;?`)
+
+func stripWrapperBackground(css string) string {
+	var b strings.Builder
+	for _, line := range strings.Split(css, "\n") {
+		if strings.Contains(line, ".chroma {") || strings.Contains(line, ".bg {") {
+			line = wrapperBackground.ReplaceAllString(line, "")
+		}
+		b.WriteString(line)
+		b.WriteByte('\n')
+	}
+	return b.String()
 }
 
 // scopeCSS prefixes every CSS rule in src with the given selector. It assumes

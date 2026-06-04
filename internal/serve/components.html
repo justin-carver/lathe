@@ -1,0 +1,49 @@
+{{/*
+  Shared Go template partials for the Lathe web UI. Parsed into BOTH the
+  layout.html and list.html template sets (see server.go), so a change here
+  applies to every page at once. CSS lives in styles.css; this file holds only
+  the markup pieces that were duplicated across pages.
+*/}}
+
+{{/* head — charset/viewport, the pre-render theme script (runs before paint to
+     avoid a flash of the wrong theme), and the inline design-system + syntax
+     stylesheets. Expects .CSS (styles.css) and .HighlightCSS (chroma). Page-
+     specific bits (<title>, meta-refresh, sidebar pre-render) stay inline in
+     each template's <head>. */}}
+{{define "head"}}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    (function(){
+      try {
+        var saved = localStorage.getItem('lathe-theme');
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var theme = saved || (prefersDark ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    })();
+  </script>
+  <style>{{.CSS}}{{.HighlightCSS}}</style>
+{{end}}
+
+{{/* badge — renders a status pill. Dot (.) is a store.Status. Unverified (and
+     any unknown value) renders nothing, matching the terminal statusBadge in
+     cmd/list.go. Keep the emoji+word vocabulary in sync with it. */}}
+{{define "badge"}}
+{{- if eq . "verified"}}<span class="badge verified">✅ Verified</span>
+{{- else if eq . "verifying"}}<span class="badge verifying">⏳ Verifying…</span>
+{{- else if eq . "failed"}}<span class="badge failed">❌ Failed</span>
+{{- else if eq . "skipped"}}<span class="badge skipped">⚠️ Skipped</span>
+{{- else if eq . "extending"}}<span class="badge extending">⏳ Extending…</span>
+{{- end}}
+{{end}}
+
+{{/* themeToggle — the dark-mode button. JS attaches to every [data-theme-toggle]
+     element, so the sidebar, bottom dock, and list-page copies all stay in
+     sync. The empty .label is filled in by JS ("Dark mode" / "Light mode"). */}}
+{{define "themeToggle"}}
+  <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
+    <span class="icon icon-light">☀</span><span class="icon icon-dark">☾</span>
+    <span class="label"></span>
+  </button>
+{{end}}

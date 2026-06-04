@@ -1,20 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {{template "head" .}}
   <title>{{.Title}} — Lathe</title>
   {{if or (eq .Tutorial.Status "extending") (eq .Tutorial.Status "verifying")}}<meta http-equiv="refresh" content="5">{{end}}
-  <script>
-    (function(){
-      try {
-        var saved = localStorage.getItem('lathe-theme');
-        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        var theme = saved || (prefersDark ? 'dark' : 'light');
-        document.documentElement.setAttribute('data-theme', theme);
-      } catch (e) {}
-    })();
-  </script>
   <script>
     (function(){
       try {
@@ -27,236 +16,6 @@
       }
     })();
   </script>
-  <style>
-    :root{
-      --bg:#f9fafb;--surface:#fff;--border:#e5e7eb;--text:#111827;--text-muted:#374151;--text-subtle:#4b5563;--text-faint:#6b7280;
-      --hover-bg:#f3f4f6;--active-bg:#eff6ff;--active-text:#1d4ed8;--code-bg:#f3f4f6;--code-text:#1f2937;--blockquote-border:#d1d5db;
-      --badge-verified-bg:#d1fae5;--badge-verified-text:#065f46;--badge-verifying-bg:#fef3c7;--badge-verifying-text:#92400e;
-      --badge-failed-bg:#fee2e2;--badge-failed-text:#991b1b;--badge-extending-bg:#e0f2fe;--badge-extending-text:#0369a1;
-      --badge-skipped-bg:#f3f4f6;--badge-skipped-text:#4b5563;
-      --callout-note-bg:#eff6ff;--callout-note-border:#3b82f6;--callout-note-label:#1d4ed8;
-      --callout-tip-bg:#ecfdf5;--callout-tip-border:#10b981;--callout-tip-label:#047857;
-      --callout-warn-bg:#fffbeb;--callout-warn-border:#f59e0b;--callout-warn-label:#b45309;
-      --callout-design-bg:#f5f3ff;--callout-design-border:#8b5cf6;--callout-design-label:#6d28d9;
-      --callout-aside-bg:transparent;--callout-aside-border:#d1d5db;--callout-aside-label:#6b7280;
-      --callout-predict-bg:#fdf4ff;--callout-predict-border:#a855f7;--callout-predict-label:#7e22ce;
-      --callout-recall-bg:#fff7ed;--callout-recall-border:#f97316;--callout-recall-label:#c2410c;
-    }
-    [data-theme="dark"]{
-      --bg:#0f1115;--surface:#181b22;--border:#2a2f3a;--text:#e5e7eb;--text-muted:#cbd5e1;--text-subtle:#9ca3af;--text-faint:#9ca3af;
-      --hover-bg:#222632;--active-bg:#1e2a44;--active-text:#93c5fd;--code-bg:#222632;--code-text:#e5e7eb;--blockquote-border:#374151;
-      --badge-verified-bg:#064e3b;--badge-verified-text:#a7f3d0;--badge-verifying-bg:#78350f;--badge-verifying-text:#fde68a;
-      --badge-failed-bg:#7f1d1d;--badge-failed-text:#fecaca;--badge-extending-bg:#0c2a40;--badge-extending-text:#7dd3fc;
-      --badge-skipped-bg:#2a2f3a;--badge-skipped-text:#cbd5e1;
-      --callout-note-bg:#172033;--callout-note-border:#3b82f6;--callout-note-label:#93c5fd;
-      --callout-tip-bg:#0f2820;--callout-tip-border:#10b981;--callout-tip-label:#6ee7b7;
-      --callout-warn-bg:#2a1f0a;--callout-warn-border:#f59e0b;--callout-warn-label:#fcd34d;
-      --callout-design-bg:#1d1730;--callout-design-border:#8b5cf6;--callout-design-label:#c4b5fd;
-      --callout-aside-bg:transparent;--callout-aside-border:#374151;--callout-aside-label:#9ca3af;
-      --callout-predict-bg:#1e0a2e;--callout-predict-border:#a855f7;--callout-predict-label:#d8b4fe;
-      --callout-recall-bg:#2a1500;--callout-recall-border:#f97316;--callout-recall-label:#fdba74;
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{overflow-x:hidden}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;font-size:clamp(.95rem, .9rem + .15vw, 1rem)}
-
-    /* Reading-progress bar (fixed, above sticky header, below ask drawer) */
-    #progressBar{position:fixed;top:0;left:0;right:0;height:3px;background:transparent;z-index:70;pointer-events:none}
-    #progressBar > div{height:100%;background:var(--active-text);transform:scaleX(0);transform-origin:left center;will-change:transform}
-
-    /* Layout */
-    .layout{display:flex;min-height:100vh}
-    nav{width:260px;background:var(--surface);border-right:1px solid var(--border);padding:1.5rem;position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;z-index:80}
-    nav h2{font-size:.9rem;font-weight:600;color:var(--text-muted);margin-bottom:.5rem;line-height:1.4}
-    .badge{display:inline-block;font-size:.7rem;padding:.2rem .5rem;border-radius:4px;margin-bottom:1.25rem}
-    .badge.verified{background:var(--badge-verified-bg);color:var(--badge-verified-text)}
-    .badge.verifying{background:var(--badge-verifying-bg);color:var(--badge-verifying-text)}
-    .badge.failed{background:var(--badge-failed-bg);color:var(--badge-failed-text)}
-    .badge.extending{background:var(--badge-extending-bg);color:var(--badge-extending-text)}
-    .badge.skipped{background:var(--badge-skipped-bg);color:var(--badge-skipped-text)}
-    nav ul{list-style:none}
-    nav li{margin:.2rem 0}
-    nav a{display:block;font-size:.85rem;color:var(--text-subtle);text-decoration:none;padding:.35rem .6rem;border-radius:5px}
-    nav a:hover{background:var(--hover-bg);color:var(--text)}
-    nav a.active{background:var(--active-bg);color:var(--active-text);font-weight:500}
-    .back-link{display:inline-flex;align-items:center;gap:.3rem;font-size:.78rem;color:var(--text-faint);text-decoration:none;padding:.2rem .25rem;margin:-.2rem 0 .85rem;border-radius:4px}
-    .back-link:hover{color:var(--active-text);background:transparent}
-    nav .toc-label{font-size:.7rem;font-weight:600;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;margin:.85rem .4rem .35rem;line-height:1.3}
-    nav ul.toc{list-style:none;margin:0;padding:0}
-    nav ul.toc li{margin:.1rem 0}
-    nav ul.toc a{font-size:.82rem;line-height:1.4;padding:.32rem .6rem;color:var(--text-subtle)}
-    nav ul.toc a:hover{background:var(--hover-bg);color:var(--text)}
-    /* Anchor offset so headings aren't flush to the top when jumped to. */
-    h2[id],h3[id]{scroll-margin-top:1rem}
-    .theme-toggle{margin-top:auto;background:transparent;border:1px solid var(--border);color:var(--text-subtle);font:inherit;font-size:.8rem;padding:.4rem .6rem;border-radius:5px;cursor:pointer;display:flex;align-items:center;gap:.4rem;width:100%}
-    .theme-toggle:hover{background:var(--hover-bg);color:var(--text)}
-    .theme-toggle .icon{font-size:.95rem;line-height:1}
-    [data-theme="dark"] .theme-toggle .icon-light,[data-theme="light"] .theme-toggle .icon-dark,:root:not([data-theme]) .theme-toggle .icon-dark{display:none}
-
-    /* Off-canvas sidebar backdrop (narrow only) */
-    #sidebarBackdrop{position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:75;display:none}
-    [data-theme="dark"] #sidebarBackdrop{background:rgba(0,0,0,0.55)}
-
-    /* Sticky narrow-screen top bar */
-    #topBar{display:none;position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--border);padding:.55rem .85rem;z-index:50;align-items:center;gap:.7rem}
-    #hamburger{background:transparent;border:1px solid var(--border);color:var(--text-subtle);font:inherit;cursor:pointer;padding:.3rem .55rem;border-radius:5px;line-height:1;font-size:1.15rem;flex-shrink:0}
-    #hamburger:hover{background:var(--hover-bg);color:var(--text)}
-    #topBar .crumb{font-size:.85rem;color:var(--text-subtle);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
-    #topBar .crumb strong{color:var(--text);font-weight:600}
-    #topBar .crumb .sep{margin:0 .35rem;color:var(--text-faint)}
-
-    /* Main */
-    main{flex:1;max-width:760px;padding:clamp(1.5rem, 1rem + 2vw, 3rem) clamp(1.1rem, .6rem + 2.5vw, 2.5rem)}
-    h1{font-size:clamp(1.5rem, 1.15rem + 1.2vw, 1.9rem);margin-bottom:1.5rem;color:var(--text);line-height:1.25}
-    h2{font-size:clamp(1.2rem, 1.02rem + .65vw, 1.4rem);margin:2rem 0 .75rem;color:var(--text);line-height:1.3}
-    h3{font-size:clamp(1.05rem, .97rem + .3vw, 1.15rem);margin:1.75rem 0 .6rem;color:var(--text-muted)}
-    p{margin-bottom:1rem;color:var(--text-muted)}
-    code{font-family:'JetBrains Mono','Fira Code',monospace;font-size:.85em;background:var(--code-bg);padding:.1rem .35rem;border-radius:3px;color:var(--code-text);overflow-wrap:anywhere;word-wrap:break-word}
-    pre{border-radius:8px;margin:1.25rem 0;padding:.9rem 1rem;overflow-x:auto;border:1px solid var(--border);background:var(--code-bg);color:var(--code-text);font-size:.875rem;transition:box-shadow 120ms ease-out}
-    pre code{background:none;padding:0;color:inherit;font-size:1em;overflow-wrap:normal;word-wrap:normal;white-space:pre}
-    /* Subtle right-edge fade hints horizontal scrollability — inset shadow stays
-       pinned to the visible right edge regardless of scroll position. */
-    pre[data-overflow="true"]{box-shadow:inset -18px 0 14px -12px rgba(0,0,0,0.18)}
-    [data-theme="dark"] pre[data-overflow="true"]{box-shadow:inset -18px 0 14px -12px rgba(0,0,0,0.55)}
-    {{.HighlightCSS}}
-    ul,ol{margin:.75rem 0 .75rem 1.5rem;color:var(--text-muted)}
-    li{margin:.25rem 0}
-    blockquote{border-left:3px solid var(--blockquote-border);padding:.5rem 1rem;margin:1rem 0;color:var(--text-faint)}
-    .callout{margin:1.5rem 0;padding:.85rem 1rem .9rem;border-left:3px solid;border-radius:6px}
-    .callout > p{margin-bottom:.5rem;color:var(--text-muted)}
-    .callout > p:last-child{margin-bottom:0}
-    .callout .callout-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem}
-    .callout-note{background:var(--callout-note-bg);border-color:var(--callout-note-border)}
-    .callout-note .callout-label{color:var(--callout-note-label)}
-    .callout-tip{background:var(--callout-tip-bg);border-color:var(--callout-tip-border)}
-    .callout-tip .callout-label{color:var(--callout-tip-label)}
-    .callout-warning,.callout-headsup{background:var(--callout-warn-bg);border-color:var(--callout-warn-border)}
-    .callout-warning .callout-label,.callout-headsup .callout-label{color:var(--callout-warn-label)}
-    .callout-designnote{background:var(--callout-design-bg);border-color:var(--callout-design-border)}
-    .callout-designnote .callout-label{color:var(--callout-design-label)}
-    .callout-aside{background:var(--callout-aside-bg);border-color:var(--callout-aside-border);font-style:italic}
-    .callout-aside .callout-label{color:var(--callout-aside-label);font-style:normal}
-    .callout-predict{background:var(--callout-predict-bg);border-color:var(--callout-predict-border)}
-    .callout-predict .callout-label{color:var(--callout-predict-label)}
-    .callout-recall{background:var(--callout-recall-bg);border-color:var(--callout-recall-border)}
-    .callout-recall .callout-label{color:var(--callout-recall-label)}
-    .mermaid{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem;margin:1.25rem 0;text-align:center;overflow-x:auto;max-width:100%}
-    .mermaid:not([data-processed]){font-family:'JetBrains Mono','Fira Code',monospace;font-size:.8rem;text-align:left;white-space:pre;color:var(--text-faint)}
-    .mermaid svg{max-width:100%;height:auto}
-
-    /* Series TOC at bottom of part */
-    .series-toc{margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--border)}
-    .series-toc > h2{font-size:.95rem;font-weight:600;margin:0 0 .7rem;color:var(--text-muted);line-height:1.3;letter-spacing:.01em}
-    .series-toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.4rem}
-    .series-toc li{margin:0}
-    .series-toc a,.series-toc .current-row{display:flex;gap:.65rem;align-items:baseline;padding:.6rem .85rem;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text-subtle);text-decoration:none;font-size:.92rem;line-height:1.3}
-    .series-toc a:hover{color:var(--active-text);border-color:var(--active-text);background:var(--hover-bg)}
-    .series-toc .current-row{color:var(--active-text);border-color:var(--active-text);background:var(--active-bg);font-weight:500}
-    .series-toc .part-num{font-size:.7rem;font-weight:600;letter-spacing:.04em;color:var(--text-faint);text-transform:uppercase;flex-shrink:0;min-width:3.4rem}
-    .series-toc .current-row .part-num{color:var(--active-text)}
-
-    /* Inline prev/next part navigation */
-    .part-nav{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--border)}
-    .part-nav a{min-width:0;text-decoration:none;color:var(--text-subtle);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.65rem .9rem;display:flex;flex-direction:column;gap:.2rem;transition:color 120ms,border-color 120ms,background 120ms}
-    .part-nav a:hover{color:var(--active-text);border-color:var(--active-text);background:var(--hover-bg)}
-    .part-nav .label{font-size:.72rem;font-weight:600;letter-spacing:.03em;color:var(--text-faint)}
-    .part-nav .title{font-size:.92rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .part-nav .next{text-align:right}
-    .part-nav .spacer{display:block}
-    .extend-section{margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border)}
-    .extend-section h3{font-size:.95rem;font-weight:600;margin:0 0 .75rem;color:var(--text-muted)}
-    #extendForm{display:flex;flex-direction:column;gap:.6rem}
-    #extendForm textarea{width:100%;padding:.6rem .75rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font:inherit;font-size:.92rem;resize:vertical;min-height:4.5rem}
-    #extendForm textarea:focus{outline:2px solid var(--active-text);outline-offset:1px}
-    #extendForm button[type="submit"]{align-self:flex-start;background:var(--active-bg);color:var(--active-text);border:1px solid var(--active-text);padding:.5rem 1.1rem;border-radius:6px;font:inherit;font-size:.9rem;font-weight:600;cursor:pointer}
-    #extendForm button[type="submit"]:hover{opacity:.85}
-    .extend-error{font-size:.85rem;color:var(--badge-failed-text);min-height:1.2em}
-    .extending-panel{color:var(--text-muted)}
-    .extending-panel .muted{font-size:.85rem;color:var(--text-faint);margin-top:.25rem}
-    .verify-section{margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border)}
-    #verifyForm button[type="submit"]{background:var(--active-bg);color:var(--active-text);border:1px solid var(--active-text);padding:.5rem 1.1rem;border-radius:6px;font:inherit;font-size:.9rem;font-weight:600;cursor:pointer}
-    #verifyForm button[type="submit"]:hover{opacity:.85}
-    .verify-error{font-size:.85rem;color:var(--badge-failed-text);min-height:1.2em;margin-top:.5rem}
-    .verifying-panel{color:var(--text-muted)}
-    .verifying-panel .muted{font-size:.85rem;color:var(--text-faint);margin-top:.25rem}
-    .verify-failure code{word-break:break-all}
-
-    /* Floating Ask button (wide screens) */
-    #askButton{position:fixed;bottom:1.5rem;right:1.5rem;z-index:40;background:var(--active-bg);color:var(--active-text);border:1px solid var(--border);font:inherit;font-weight:600;font-size:.9rem;padding:.65rem 1.1rem;border-radius:9999px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.15);transition:transform 150ms ease-out,box-shadow 150ms ease-out}
-    #askButton:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,0,0,0.2)}
-    #askButton:focus-visible{outline:2px solid var(--active-text);outline-offset:2px}
-
-    /* Bottom action dock (narrow only) */
-    #bottomDock{display:none;position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:.55rem .85rem;z-index:50;justify-content:space-between;align-items:center;gap:.7rem}
-    #bottomDock .theme-toggle{margin:0;width:auto}
-    #dockAsk{font:inherit;font-weight:600;font-size:.9rem;background:var(--active-bg);color:var(--active-text);border:1px solid var(--border);padding:.5rem 1.15rem;border-radius:9999px;cursor:pointer}
-    #dockAsk:hover{filter:brightness(.97)}
-    #dockAsk:focus-visible{outline:2px solid var(--active-text);outline-offset:2px}
-
-    /* Ask drawer (wide: right-side slide-in) */
-    #askDrawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);background:var(--surface);border-left:1px solid var(--border);transform:translateX(100%);transition:transform 200ms ease-out;z-index:90;display:flex;flex-direction:column}
-    #askDrawer.open{transform:translateX(0)}
-    #askDrawer header{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:1rem 1.25rem;border-bottom:1px solid var(--border)}
-    #askDrawer header h3{font-size:1rem;font-weight:600;color:var(--text);margin:0;line-height:1.3;overflow:hidden;text-overflow:ellipsis}
-    #askClose{background:transparent;border:none;color:var(--text-subtle);font-size:1.5rem;line-height:1;cursor:pointer;padding:.25rem .5rem;border-radius:4px}
-    #askClose:hover{background:var(--hover-bg);color:var(--text)}
-    #askBackdrop{position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:85}
-    [data-theme="dark"] #askBackdrop{background:rgba(0,0,0,0.55)}
-    #askLog{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.75rem}
-    .ask-bubble{border-radius:8px;padding:.6rem .8rem;max-width:92%;word-wrap:break-word;color:var(--text);font-size:.9rem;line-height:1.5}
-    /* Question bubbles and the text fallback for answers both need pre-wrap
-       so SSE-streamed `\n`s render. Markdown-rendered answers don't — the
-       HTML structure carries line breaks and pre-wrap there would surface
-       inter-element whitespace as ugly blank lines. */
-    .ask-question{align-self:flex-end;background:var(--active-bg);color:var(--active-text);white-space:pre-wrap}
-    .ask-answer{align-self:flex-start;background:var(--hover-bg);white-space:pre-wrap}
-    .ask-answer.markdown{white-space:normal}
-    .ask-answer.markdown > :first-child{margin-top:0}
-    .ask-answer.markdown > :last-child{margin-bottom:0}
-    .ask-answer.markdown p{margin-bottom:.5rem}
-    .ask-answer.markdown ul,.ask-answer.markdown ol{margin:.4rem 0 .4rem 1.25rem}
-    .ask-answer.markdown pre{margin:.6rem 0}
-    /* Thinking-dots placeholder: shown in the answer bubble between submit
-       and the first streamed chunk. Three small circles with a staggered
-       pulse. Reduced-motion users get static dots (essentially a "…"). */
-    .ask-bubble.thinking{display:inline-flex;align-items:center;gap:.32rem;padding:.85rem 1rem;white-space:normal}
-    .ask-bubble.thinking .dot{width:.4rem;height:.4rem;border-radius:50%;background:var(--text-faint);opacity:.35;animation:askDotPulse 1.2s infinite ease-in-out}
-    .ask-bubble.thinking .dot:nth-child(2){animation-delay:.15s}
-    .ask-bubble.thinking .dot:nth-child(3){animation-delay:.3s}
-    @keyframes askDotPulse{0%,80%,100%{opacity:.25;transform:scale(.85)}40%{opacity:1;transform:scale(1)}}
-    @media (prefers-reduced-motion: reduce){
-      .ask-bubble.thinking .dot{animation:none;opacity:.55;transform:none}
-    }
-    #askForm{display:flex;flex-direction:column;gap:.6rem;padding:1rem;border-top:1px solid var(--border)}
-    #askInput{width:100%;resize:vertical;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:.55rem .7rem;font:inherit;font-size:.9rem;line-height:1.4}
-    #askInput:focus{outline:2px solid var(--active-text);outline-offset:1px}
-    .ask-controls{display:flex;gap:.5rem;justify-content:flex-end}
-    #askSubmit,#askStop{font:inherit;font-size:.85rem;font-weight:500;padding:.45rem .9rem;border-radius:6px;border:1px solid var(--border);cursor:pointer}
-    #askSubmit{background:var(--active-bg);color:var(--active-text)}
-    #askSubmit:hover:not(:disabled){background:var(--hover-bg)}
-    #askStop{background:var(--badge-failed-bg);color:var(--badge-failed-text)}
-    #askStop:hover{filter:brightness(0.95)}
-    #askSubmit:disabled,#askStop:disabled{opacity:.5;cursor:not-allowed}
-
-    /* === Narrow viewport (<900px): off-canvas sidebar, sticky header, bottom dock === */
-    @media (max-width:899px){
-      .layout{display:block}
-      nav{position:fixed;top:0;left:0;height:100vh;width:min(280px,82vw);transform:translateX(-100%);transition:transform 200ms ease-out;border-right:1px solid var(--border)}
-      [data-sidebar="open"] nav{transform:translateX(0)}
-      [data-sidebar="open"] #sidebarBackdrop{display:block}
-      main{max-width:none;padding-bottom:5.5rem}
-      #topBar{display:flex}
-      #bottomDock{display:flex}
-      #askButton{display:none}
-      nav .theme-toggle{display:none}
-    }
-
-    /* === Bottom-sheet Ask drawer (≤700px) === */
-    @media (max-width:700px){
-      #askDrawer{top:auto;left:0;right:0;width:100%;height:80vh;border-left:none;border-top:1px solid var(--border);border-radius:12px 12px 0 0;transform:translateY(100%)}
-      #askDrawer.open{transform:translateY(0)}
-    }
-  </style>
 </head>
 <body>
 <div id="progressBar" aria-hidden="true"><div></div></div>
@@ -268,22 +27,14 @@
   <nav id="sidebar">
     <a href="/" class="back-link">← All tutorials</a>
     <h2>{{.Tutorial.Title}}</h2>
-    {{if eq .Tutorial.Status "verified"}}<span class="badge verified">✅ Verified</span>
-    {{else if eq .Tutorial.Status "verifying"}}<span class="badge verifying">⏳ Verifying…</span>
-    {{else if eq .Tutorial.Status "failed"}}<span class="badge failed">❌ Failed</span>
-    {{else if eq .Tutorial.Status "skipped"}}<span class="badge skipped">⚠️ Skipped</span>
-    {{else if eq .Tutorial.Status "extending"}}<span class="badge extending">⏳ Extending…</span>
-    {{end}}
+    {{template "badge" .Tutorial.Status}}
     {{if .TOC}}
     <h3 class="toc-label">On this page</h3>
     <ul class="toc">
       {{range .TOC}}<li><a href="#{{.ID}}">{{.Text}}</a></li>{{end}}
     </ul>
     {{end}}
-    <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
-      <span class="icon icon-light">☀</span><span class="icon icon-dark">☾</span>
-      <span class="label"></span>
-    </button>
+    {{template "themeToggle" .}}
   </nav>
   <main>
     {{.Content}}
@@ -303,7 +54,7 @@
     {{else if or (eq .Tutorial.Status "unverified") (eq .Tutorial.Status "failed") (eq .Tutorial.Status "skipped")}}
     <section class="verify-section">
       <form id="verifyForm" method="POST" action="/-/verify/{{.Tutorial.Slug}}">
-        <button type="submit">{{if eq .Tutorial.Status "unverified"}}Verify this tutorial{{else}}Re-verify this tutorial{{end}}</button>
+        <button type="submit" class="btn btn-primary">{{if eq .Tutorial.Status "unverified"}}Verify this tutorial{{else}}Re-verify this tutorial{{end}}</button>
         <p class="verify-error" aria-live="polite"></p>
       </form>
     </section>
@@ -351,7 +102,7 @@
       <form id="extendForm" method="POST" action="/-/extend/{{.Tutorial.Slug}}" data-pending-number="{{.NextPartNumber}}">
         <h3>Continue this series</h3>
         <textarea name="guidance" placeholder="What should the next part cover? (optional)" rows="3"></textarea>
-        <button type="submit">Add Part {{.NextPartNumber}}</button>
+        <button type="submit" class="btn btn-primary">Add Part {{.NextPartNumber}}</button>
         <p class="extend-error" aria-live="polite"></p>
       </form>
     </section>
@@ -360,12 +111,10 @@
   </main>
 </div>
 <div id="sidebarBackdrop"></div>
-<button type="button" id="askButton" data-ask-open aria-label="Ask a question about this tutorial">Ask</button>
+<button type="button" id="askButton" class="btn btn-primary btn-pill" data-ask-open aria-label="Ask a question about this tutorial">Ask</button>
 <div id="bottomDock">
-  <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
-    <span class="icon icon-light">☀</span><span class="icon icon-dark">☾</span>
-  </button>
-  <button type="button" id="dockAsk" data-ask-open aria-label="Ask a question about this tutorial">Ask</button>
+  {{template "themeToggle" .}}
+  <button type="button" id="dockAsk" class="btn btn-primary btn-pill" data-ask-open aria-label="Ask a question about this tutorial">Ask</button>
 </div>
 <aside id="askDrawer" data-slug="{{.Tutorial.Slug}}" data-part="{{.CurrentPart}}" aria-hidden="true">
   <header>
@@ -376,8 +125,8 @@
   <form id="askForm">
     <textarea id="askInput" placeholder="Ask a question…" rows="2" required></textarea>
     <div class="ask-controls">
-      <button type="submit" id="askSubmit">Send</button>
-      <button type="button" id="askStop" hidden>Stop</button>
+      <button type="submit" id="askSubmit" class="btn btn-primary btn-sm">Send</button>
+      <button type="button" id="askStop" class="btn btn-danger btn-sm" hidden>Stop</button>
     </div>
   </form>
 </aside>

@@ -14,10 +14,18 @@ import (
 	"github.com/devenjarvis/lathe/internal/store"
 )
 
-//go:embed layout.html list.html
+//go:embed layout.html list.html components.html
 var templateFS embed.FS
 
+// styles.css is the entire design system (tokens + components). It's loaded
+// once at startup and injected inline via the {{define "head"}} partial,
+// mirroring how HighlightCSS is injected — no extra request, no FOUC.
+//
+//go:embed styles.css
+var stylesCSS string
+
 //go:embed static/mermaid.min.js static/marked.min.js static/dompurify.min.js
+//go:embed static/fonts/fraunces.woff2 static/fonts/newsreader.woff2 static/fonts/newsreader-italic.woff2 static/fonts/jetbrains-mono.woff2
 var staticFS embed.FS
 
 type Server struct {
@@ -25,19 +33,28 @@ type Server struct {
 	layoutTmpl   *template.Template
 	listTmpl     *template.Template
 	highlightCSS template.CSS
+	designCSS    template.CSS
 }
 
 func NewServer(tutorialsDir string) *Server {
 	funcMap := template.FuncMap{
 		"add": func(a, b int) int { return a + b },
 	}
-	layoutTmpl := template.Must(template.New("layout.html").Funcs(funcMap).ParseFS(templateFS, "layout.html"))
-	listTmpl := template.Must(template.New("list.html").ParseFS(templateFS, "list.html"))
+	// components.html is parsed into both template sets so its shared partials
+	// ({{define "head"}}, "badge", "themeToggle") are available to each page.
+	layoutTmpl := template.Must(template.New("layout.html").Funcs(funcMap).ParseFS(templateFS, "components.html", "layout.html"))
+	listTmpl := template.Must(template.New("list.html").Funcs(funcMap).ParseFS(templateFS, "components.html", "list.html"))
 	css, err := HighlightCSS()
 	if err != nil {
 		panic(fmt.Sprintf("lathe: failed to build syntax-highlight CSS: %v", err))
 	}
-	return &Server{tutorialsDir: tutorialsDir, layoutTmpl: layoutTmpl, listTmpl: listTmpl, highlightCSS: css}
+	return &Server{
+		tutorialsDir: tutorialsDir,
+		layoutTmpl:   layoutTmpl,
+		listTmpl:     listTmpl,
+		highlightCSS: css,
+		designCSS:    template.CSS(stylesCSS),
+	}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -58,9 +75,13 @@ func (s *Server) Handler() http.Handler {
 // unexpected route — even though the {name} wildcard already can't contain a
 // slash, this is the cheap belt-and-suspenders check.
 var staticAssets = map[string]string{
-	"mermaid.min.js":   "application/javascript; charset=utf-8",
-	"marked.min.js":    "application/javascript; charset=utf-8",
-	"dompurify.min.js": "application/javascript; charset=utf-8",
+	"mermaid.min.js":          "application/javascript; charset=utf-8",
+	"marked.min.js":           "application/javascript; charset=utf-8",
+	"dompurify.min.js":        "application/javascript; charset=utf-8",
+	"fraunces.woff2":          "font/woff2",
+	"newsreader.woff2":        "font/woff2",
+	"newsreader-italic.woff2": "font/woff2",
+	"jetbrains-mono.woff2":    "font/woff2",
 }
 
 func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
@@ -70,7 +91,13 @@ func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	data, err := staticFS.ReadFile("static/" + name)
+	// Fonts are served at flat /_static/<name>.woff2 (single-segment route,
+	// whitelisted above) but live under static/fonts/ on disk.
+	embedPath := "static/" + name
+	if strings.HasSuffix(name, ".woff2") {
+		embedPath = "static/fonts/" + name
+	}
+	data, err := staticFS.ReadFile(embedPath)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -100,6 +127,7 @@ func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
 	var buf bytes.Buffer
 	if err := s.listTmpl.Execute(&buf, map[string]any{
 		"Tutorials":    tutorials,
+		"CSS":          s.designCSS,
 		"HighlightCSS": s.highlightCSS,
 	}); err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
@@ -241,6 +269,7 @@ func (s *Server) renderPart(w http.ResponseWriter, tut *store.Tutorial, tutDir, 
 		"CurrentPart":       part,
 		"CurrentPartNumber": currentNumber,
 		"Content":           template.HTML(content),
+		"CSS":               s.designCSS,
 		"HighlightCSS":      s.highlightCSS,
 		"PrevPart":          prevPart,
 		"NextPart":          nextPart,

@@ -348,6 +348,44 @@ func TestStaticMermaidAsset(t *testing.T) {
 	}
 }
 
+func TestStaticFontAssets(t *testing.T) {
+	dir := t.TempDir()
+	srv := serve.NewServer(dir)
+
+	// The embedded woff2 fonts live under static/fonts/ on disk but are served
+	// at flat /_static/<name>.woff2 (single-segment route + whitelist). Verify
+	// the .woff2 → static/fonts/ path resolution works for every bundled font.
+	fonts := []string{
+		"fraunces.woff2",
+		"newsreader.woff2",
+		"newsreader-italic.woff2",
+		"jetbrains-mono.woff2",
+	}
+	for _, name := range fonts {
+		t.Run(name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/_static/"+name, nil)
+			w := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(w, req)
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("GET /_static/%s = %d, want %d", name, w.Code, http.StatusOK)
+			}
+			if ct := w.Header().Get("Content-Type"); ct != "font/woff2" {
+				t.Errorf("%s Content-Type = %q, want font/woff2", name, ct)
+			}
+			// woff2 files start with the "wOF2" signature; also sanity-check
+			// they're not suspiciously small (subset latin faces are >10KB).
+			body := w.Body.Bytes()
+			if len(body) < 10_000 {
+				t.Errorf("%s suspiciously small (%d bytes)", name, len(body))
+			}
+			if len(body) < 4 || string(body[:4]) != "wOF2" {
+				t.Errorf("%s missing wOF2 signature", name)
+			}
+		})
+	}
+}
+
 func TestStaticAssetWhitelist(t *testing.T) {
 	dir := t.TempDir()
 	srv := serve.NewServer(dir)

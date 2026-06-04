@@ -216,12 +216,12 @@ func TestHighlightCSS(t *testing.T) {
 			continue
 		}
 	}
-	// Spot-check that both palettes appear: github (light) uses #fff for bg,
-	// monokai (dark) uses #f8f8f2 for default fg.
-	if !strings.Contains(strings.ToLower(s), "#fff") {
+	// Spot-check that both palettes appear: tango (light) uses #8f5902 for its
+	// warm-brown comments, gruvbox (dark) uses #fe8019 for keywords/operators.
+	if !strings.Contains(strings.ToLower(s), "#8f5902") {
 		t.Error("HighlightCSS() missing expected light-theme color")
 	}
-	if !strings.Contains(strings.ToLower(s), "#f8f8f2") {
+	if !strings.Contains(strings.ToLower(s), "#fe8019") {
 		t.Error("HighlightCSS() missing expected dark-theme color")
 	}
 }

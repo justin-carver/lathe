@@ -1,84 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  {{template "head" .}}
   <title>Lathe — Tutorials</title>
-  <script>
-    (function(){
-      try {
-        var saved = localStorage.getItem('lathe-theme');
-        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        var theme = saved || (prefersDark ? 'dark' : 'light');
-        document.documentElement.setAttribute('data-theme', theme);
-      } catch (e) {}
-    })();
-  </script>
-  <style>
-    :root{
-      --bg:#f9fafb;--surface:#fff;--border:#e5e7eb;--text:#111827;--text-faint:#6b7280;--text-empty:#9ca3af;
-      --link:#1d4ed8;--code-bg:#f3f4f6;--code-text:#1f2937;
-      --badge-verified-bg:#d1fae5;--badge-verified-text:#065f46;--badge-verifying-bg:#fef3c7;--badge-verifying-text:#92400e;
-      --badge-failed-bg:#fee2e2;--badge-failed-text:#991b1b;--badge-extending-bg:#e0f2fe;--badge-extending-text:#0369a1;
-      --badge-skipped-bg:#f3f4f6;--badge-skipped-text:#4b5563;
-    }
-    [data-theme="dark"]{
-      --bg:#0f1115;--surface:#181b22;--border:#2a2f3a;--text:#e5e7eb;--text-faint:#9ca3af;--text-empty:#6b7280;
-      --link:#93c5fd;--code-bg:#222632;--code-text:#e5e7eb;
-      --badge-verified-bg:#064e3b;--badge-verified-text:#a7f3d0;--badge-verifying-bg:#78350f;--badge-verifying-text:#fde68a;
-      --badge-failed-bg:#7f1d1d;--badge-failed-text:#fecaca;--badge-extending-bg:#0c2a40;--badge-extending-text:#7dd3fc;
-      --badge-skipped-bg:#2a2f3a;--badge-skipped-text:#cbd5e1;
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{overflow-x:hidden}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);max-width:700px;margin:clamp(1.5rem, .9rem + 2vw, 3rem) auto;padding:0 clamp(.9rem, .4rem + 2vw, 1.5rem);font-size:clamp(.95rem, .9rem + .15vw, 1rem)}
-    .header{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap}
-    .header > div{min-width:0;flex:1 1 auto}
-    h1{font-size:clamp(1.4rem, 1.1rem + 1vw, 1.75rem);margin-bottom:.4rem;line-height:1.25}
-    .subtitle{color:var(--text-faint);margin-bottom:2rem;font-size:.95rem}
-    .tutorial{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem 1.25rem;margin:.75rem 0;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
-    .tutorial > div:first-child{min-width:0;flex:1 1 14rem}
-    .tutorial a{text-decoration:none;color:var(--link);font-weight:500;font-size:1rem;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
-    .tutorial a:hover{text-decoration:underline}
-    .meta{font-size:.8rem;color:var(--text-empty);margin-top:.2rem}
-    .tutorial-actions{display:flex;align-items:center;gap:.6rem;flex-shrink:0;flex-wrap:wrap}
-    .delete-form{margin:0}
-    .delete-btn{background:transparent;border:1px solid var(--border);color:var(--text-empty);font:inherit;font-size:1rem;line-height:1;min-width:32px;min-height:32px;padding:.15rem .55rem;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
-    .delete-btn:hover{color:var(--badge-failed-text);border-color:var(--badge-failed-text);background:var(--badge-failed-bg)}
-    .badge{font-size:.7rem;padding:.25rem .5rem;border-radius:4px;line-height:1.4}
-    .badge.verified{background:var(--badge-verified-bg);color:var(--badge-verified-text)}
-    .badge.verifying{background:var(--badge-verifying-bg);color:var(--badge-verifying-text)}
-    .badge.failed{background:var(--badge-failed-bg);color:var(--badge-failed-text)}
-    .badge.extending{background:var(--badge-extending-bg);color:var(--badge-extending-text)}
-    .badge.skipped{background:var(--badge-skipped-bg);color:var(--badge-skipped-text)}
-    .empty{color:var(--text-empty);text-align:center;padding:3rem 1rem;font-size:.95rem}
-    .empty code{background:var(--code-bg);color:var(--code-text);padding:.1rem .35rem;border-radius:3px;font-family:'JetBrains Mono','Fira Code',monospace;font-size:.85em}
-    .theme-toggle{background:transparent;border:1px solid var(--border);color:var(--text-faint);font:inherit;font-size:.8rem;padding:.4rem .6rem;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem;flex-shrink:0;min-height:32px}
-    .theme-toggle:hover{color:var(--text)}
-    .theme-toggle .icon{font-size:.95rem;line-height:1}
-    [data-theme="dark"] .theme-toggle .icon-light,[data-theme="light"] .theme-toggle .icon-dark,:root:not([data-theme]) .theme-toggle .icon-dark{display:none}
-    @media (max-width:499px){
-      .header{flex-direction:column;align-items:stretch}
-      .header > div{flex:initial}
-      .theme-toggle{align-self:flex-start}
-      .subtitle{margin-bottom:1.25rem}
-    }
-    @media (max-width:419px){
-      .tutorial{flex-direction:column;align-items:stretch}
-      .tutorial-actions{justify-content:space-between}
-    }
-    {{.HighlightCSS}}
-  </style>
 </head>
-<body>
+<body class="list">
 <div class="header">
   <div>
     <h1>Lathe</h1>
     <p class="subtitle">Your generated tutorials</p>
   </div>
-  <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
-    <span class="icon icon-light">☀</span><span class="icon icon-dark">☾</span>
-    <span class="label"></span>
-  </button>
+  {{template "themeToggle" .}}
 </div>
 {{if .Tutorials}}
 {{range .Tutorials}}
@@ -88,12 +20,7 @@
     <div class="meta">{{if .IsSeries}}{{len .Parts}} parts{{else}}single tutorial{{end}} · {{.Created.Format "Jan 2, 2006"}}</div>
   </div>
   <div class="tutorial-actions">
-    {{if eq .Status "verified"}}<span class="badge verified">✅ Verified</span>
-    {{else if eq .Status "verifying"}}<span class="badge verifying">⏳ Verifying…</span>
-    {{else if eq .Status "failed"}}<span class="badge failed">❌ Failed</span>
-    {{else if eq .Status "skipped"}}<span class="badge skipped">⚠️ Skipped</span>
-    {{else if eq .Status "extending"}}<span class="badge extending">⏳ Extending…</span>
-    {{end}}
+    {{template "badge" .Status}}
     <form method="POST" action="/-/delete/{{.Slug}}" class="delete-form" data-tutorial-title="{{.Title}}">
       <button type="submit" class="delete-btn" aria-label="Delete tutorial" title="Delete tutorial">×</button>
     </form>
@@ -104,21 +31,28 @@
 <div class="empty">No tutorials yet. Run <code>/lathe</code> in Claude Code to generate one.</div>
 {{end}}
 <script>
+  // Theme toggle — attaches to every [data-theme-toggle] (the shared partial),
+  // mirroring the reading page so the markup and behavior stay in one place.
   (function(){
-    var btn = document.getElementById('themeToggle');
-    if (!btn) return;
-    var label = btn.querySelector('.label');
+    var toggles = document.querySelectorAll('[data-theme-toggle]');
+    if (!toggles.length) return;
     function refresh(){
       var t = document.documentElement.getAttribute('data-theme') || 'light';
-      if (label) label.textContent = t === 'dark' ? 'Light mode' : 'Dark mode';
+      var labelText = t === 'dark' ? 'Light mode' : 'Dark mode';
+      toggles.forEach(function(btn){
+        var label = btn.querySelector('.label');
+        if (label) label.textContent = labelText;
+      });
     }
     refresh();
-    btn.addEventListener('click', function(){
-      var current = document.documentElement.getAttribute('data-theme') || 'light';
-      var next = current === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      try { localStorage.setItem('lathe-theme', next); } catch (e) {}
-      refresh();
+    toggles.forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var current = document.documentElement.getAttribute('data-theme') || 'light';
+        var next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        try { localStorage.setItem('lathe-theme', next); } catch (e) {}
+        refresh();
+      });
     });
   })();
   (function(){
