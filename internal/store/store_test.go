@@ -16,7 +16,7 @@ func TestStoreSingleTutorial(t *testing.T) {
 	// Override home so we don't pollute the real ~/.lathe
 	t.Setenv("HOME", t.TempDir())
 
-	tut, err := store.Store(src, nil, nil)
+	tut, err := store.Store(src, store.StoreOptions{})
 	if err != nil {
 		t.Fatalf("Store() error = %v", err)
 	}
@@ -40,7 +40,7 @@ func TestStoreStripsLathePrefixFromSlug(t *testing.T) {
 	}
 	t.Setenv("HOME", t.TempDir())
 
-	tut, err := store.Store(src, nil, nil)
+	tut, err := store.Store(src, store.StoreOptions{})
 	if err != nil {
 		t.Fatalf("Store() error = %v", err)
 	}
@@ -61,7 +61,7 @@ func TestStoreSeriesTutorial(t *testing.T) {
 	}
 	t.Setenv("HOME", t.TempDir())
 
-	tut, err := store.Store(src, nil, nil)
+	tut, err := store.Store(src, store.StoreOptions{})
 	if err != nil {
 		t.Fatalf("Store() error = %v", err)
 	}
@@ -81,7 +81,7 @@ func TestStorePersistsAndNormalizesTags(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 
-	tut, err := store.Store(src, []string{"  Rust ", "audio", "rust", ""}, nil)
+	tut, err := store.Store(src, store.StoreOptions{Tags: []string{"  Rust ", "audio", "rust", ""}})
 	if err != nil {
 		t.Fatalf("Store() error = %v", err)
 	}
@@ -97,6 +97,59 @@ func TestStorePersistsAndNormalizesTags(t *testing.T) {
 	}
 	if !equalStrings(read.Tags, want) {
 		t.Errorf("ReadMetadata() Tags = %v, want %v", read.Tags, want)
+	}
+}
+
+func TestStorePersistsAndNormalizesRepoAndTools(t *testing.T) {
+	src := t.TempDir()
+	if err := os.WriteFile(filepath.Join(src, "index.md"), []byte("# Hello"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	tut, err := store.Store(src, store.StoreOptions{
+		Repo:   "git@github.com:devenjarvis/lathe.git",
+		Branch: " main ",
+		Tools:  []store.Tool{{Name: " Zig ", Version: "0.13.0"}, {Name: "zig", Version: "0.12"}},
+	})
+	if err != nil {
+		t.Fatalf("Store() error = %v", err)
+	}
+	if tut.Repo != "github.com/devenjarvis/lathe" {
+		t.Errorf("Store() Repo = %q, want %q", tut.Repo, "github.com/devenjarvis/lathe")
+	}
+	if tut.RepoBranch != "main" {
+		t.Errorf("Store() RepoBranch = %q, want %q", tut.RepoBranch, "main")
+	}
+	if len(tut.Tools) != 1 || tut.Tools[0] != (store.Tool{Name: "zig", Version: "0.13.0"}) {
+		t.Errorf("Store() Tools = %v, want [{zig 0.13.0}]", tut.Tools)
+	}
+
+	// Round-trips through metadata.json.
+	read, err := store.ReadMetadata(filepath.Join(home, ".lathe", "tutorials", tut.Slug))
+	if err != nil {
+		t.Fatalf("ReadMetadata() error = %v", err)
+	}
+	if read.Repo != tut.Repo || read.RepoBranch != tut.RepoBranch || len(read.Tools) != 1 {
+		t.Errorf("ReadMetadata() = %+v, want repo/branch/tools to match", read)
+	}
+}
+
+func TestStoreDropsBranchWithoutRepo(t *testing.T) {
+	src := t.TempDir()
+	if err := os.WriteFile(filepath.Join(src, "index.md"), []byte("# Hello"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", t.TempDir())
+
+	// A branch with no repo is meaningless and must not be recorded.
+	tut, err := store.Store(src, store.StoreOptions{Branch: "main"})
+	if err != nil {
+		t.Fatalf("Store() error = %v", err)
+	}
+	if tut.Repo != "" || tut.RepoBranch != "" {
+		t.Errorf("Store() Repo/Branch = %q/%q, want both empty", tut.Repo, tut.RepoBranch)
 	}
 }
 
@@ -119,7 +172,7 @@ func TestStoreDefaultsToUnverified(t *testing.T) {
 	}
 	t.Setenv("HOME", t.TempDir())
 	// Store never auto-verifies; the default status is unverified.
-	tut, err := store.Store(src, nil, nil)
+	tut, err := store.Store(src, store.StoreOptions{})
 	if err != nil {
 		t.Fatalf("Store() error = %v", err)
 	}
@@ -136,7 +189,7 @@ func TestStoreDoesNotSpawnVerifier(t *testing.T) {
 	homeDir := t.TempDir()
 	t.Setenv("HOME", homeDir)
 
-	tut, err := store.Store(src, nil, nil)
+	tut, err := store.Store(src, store.StoreOptions{})
 	if err != nil {
 		t.Fatalf("Store() error = %v", err)
 	}
@@ -156,7 +209,7 @@ func TestDeleteRemovesTutorial(t *testing.T) {
 	homeDir := t.TempDir()
 	t.Setenv("HOME", homeDir)
 
-	tut, err := store.Store(src, nil, nil)
+	tut, err := store.Store(src, store.StoreOptions{})
 	if err != nil {
 		t.Fatalf("Store() error = %v", err)
 	}

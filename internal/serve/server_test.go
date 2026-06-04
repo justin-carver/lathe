@@ -116,6 +116,68 @@ func TestListPageRendersTagsAndControls(t *testing.T) {
 	}
 }
 
+func TestListPageGroupsByRepoAndRendersVersions(t *testing.T) {
+	dir := t.TempDir()
+
+	// Two tutorials in the same repo, one with no repo — exercises grouping and
+	// the "No repo" bucket, plus version chips and the Versions filter row.
+	mk := func(slug string, repo string, tools []store.Tool) {
+		tutDir := filepath.Join(dir, slug)
+		if err := os.MkdirAll(tutDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(tutDir, "index.md"), []byte("# x"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		tut := &store.Tutorial{
+			Slug:    slug,
+			Title:   slug,
+			Status:  store.StatusUnverified,
+			Created: time.Now(),
+			Repo:    repo,
+			Tools:   tools,
+		}
+		if err := store.WriteMetadata(tutDir, tut); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mk("synth-zig", "github.com/devenjarvis/lathe", []store.Tool{{Name: "zig", Version: "0.13.0"}})
+	mk("compiler-go", "github.com/devenjarvis/lathe", []store.Tool{{Name: "go", Version: "1.22"}})
+	mk("standalone", "", nil)
+
+	srv := serve.NewServer(dir)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+	body := w.Body.String()
+
+	if !strings.Contains(body, `<span class="repo-group-name">devenjarvis/lathe</span>`) {
+		t.Error("list page missing repo group header for devenjarvis/lathe")
+	}
+	if !strings.Contains(body, `<span class="repo-group-name">No repo</span>`) {
+		t.Error("list page missing the 'No repo' group for repo-less tutorials")
+	}
+	if !strings.Contains(body, `data-repo="devenjarvis/lathe"`) {
+		t.Error("card missing data-repo attribute for search/filter")
+	}
+	if !strings.Contains(body, `data-tools="zig 0.13.0,"`) {
+		t.Error("card missing data-tools attribute for version filter")
+	}
+	if !strings.Contains(body, `<span class="version">zig 0.13.0</span>`) {
+		t.Error("card missing rendered version chip")
+	}
+	if !strings.Contains(body, `id="versionFilters"`) {
+		t.Error("list page missing the Versions filter row")
+	}
+	// The repo group must come before the no-repo bucket. Match the group-header
+	// markup specifically (the bare strings also appear in the inline CSS).
+	repoHdr := strings.Index(body, `repo-group-name">devenjarvis/lathe<`)
+	noRepoHdr := strings.Index(body, `repo-group-name">No repo<`)
+	if repoHdr == -1 || noRepoHdr == -1 || repoHdr > noRepoHdr {
+		t.Errorf("repo group (%d) should render before the 'No repo' bucket (%d)", repoHdr, noRepoHdr)
+	}
+}
+
 func TestTutorialPage(t *testing.T) {
 	dir := t.TempDir()
 	makeTestTutorial(t, dir, "test-tutorial", false)

@@ -13,10 +13,35 @@ The user says something like `/lathe build a digital synth in Zig` or `/lathe ho
 
 1. Ask: **"What's your experience level going in — beginner, some familiarity, or experienced in adjacent areas?"**
 2. If the topic is genuinely ambiguous (language? scale? embedded vs. server?), ask **one** clarifying question. Otherwise skip.
-3. **Research the topic first** (see below) — this is the single most important step for accuracy. Lathe exists to teach things with little training material behind them, which is exactly where recalled "knowledge" is most likely to be invented. Don't skip it.
-4. Run the **Pre-flight** in your head — silently. Don't ask the user to approve the choices.
-5. Write Part 1.
-6. Hand off to the CLI.
+3. **Pin the repo and toolchain versions** (see "Pin the repo and versions" below) — do this *before* you research or write, so the tutorial is rooted in the exact versions the reader will use.
+4. **Research the topic first** (see below) — this is the single most important step for accuracy. Lathe exists to teach things with little training material behind them, which is exactly where recalled "knowledge" is most likely to be invented. Don't skip it.
+5. Run the **Pre-flight** in your head — silently. Don't ask the user to approve the choices.
+6. Write Part 1.
+7. Hand off to the CLI.
+
+## Pin the repo and versions (before research)
+
+Lathe is for **programming tutorials**, and a tutorial is only as trustworthy as the versions it's rooted in. Settle two things before you research or write, then pass them to `lathe store` (see "After writing"). Both flow into `lathe serve`: tutorials are grouped by repo, and the versions show as chips with their own filter — so an old tutorial written against a stale toolchain is identifiable at a glance.
+
+**1. The repo (auto-detect, then confirm).** If this session is inside a git repo the tutorial is *for*, capture it. Detect it:
+
+```bash
+git -C "$PWD" remote get-url origin 2>/dev/null   # the remote (preferred grouping key)
+git -C "$PWD" branch --show-current 2>/dev/null    # the branch
+```
+
+Show the reader what you found — e.g. *"This looks like it's for **devenjarvis/lathe** (branch `main`) — group it there?"* — and let them confirm, correct, or say it's a standalone tutorial with no repo. If there's no remote, no git repo, or the reader says it's standalone, skip the repo (it lands in the "No repo" group). `lathe store` canonicalizes whatever URL you pass to `host/org/repo`, so the raw `origin` URL is fine.
+
+**2. The toolchain versions (detect, then confirm).** Figure out which languages/tools the tutorial will lean on, probe the versions actually installed, and **confirm the target with the reader before you write** — getting this wrong means the whole tutorial teaches against the wrong version. Probe whatever's relevant:
+
+```bash
+zig version            # → 0.13.0
+go version             # → go1.22.3
+node --version         # → v20.11.0
+rustc --version        # → 1.75.0
+```
+
+Propose them — *"I'll write this against **Zig 0.13.0** and **LLVM 18** — sound right, or do you want a different target?"* — and adjust to whatever the reader says (they may want an older version on purpose). These pinned versions are now a constraint on your prose: cite version-specific behavior accordingly, and if a fact is version-sensitive, anchor it to the pinned version.
 
 ## Research first (do this before drafting)
 
@@ -312,6 +337,8 @@ Run:
 ```bash
 lathe store /tmp/lathe-<slug> \
   --tag <a> --tag <b> --tag <c> \
+  --repo <origin-url> --repo-branch <branch> \
+  --tool <name>:<version> --tool <name>:<version> \
   --source <url> --source <url>
 ```
 
@@ -320,6 +347,14 @@ search and tag filters. Cover, where they apply: the language/runtime (`zig`,
 `rust`, `go`), the domain (`audio`, `compilers`, `databases`), and the core
 technique (`parsing`, `dsp`, `concurrency`). Prefer short, reusable tags that
 will group naturally with other tutorials over hyper-specific one-offs.
+
+Pass `--repo` and `--repo-branch` with the repo you pinned (see "Pin the repo
+and versions"). Give `--repo` the raw `origin` URL — `lathe store` canonicalizes
+it to `host/org/repo` for grouping — and omit both flags entirely for a
+standalone tutorial with no repo. **Don't put versions in tags**: pass each
+pinned tool as `--tool name:version` (repeatable, e.g. `--tool zig:0.13.0
+--tool llvm:18`). Lathe stores these as structured versions, shows them as chips
+on the card, and gives them their own filter — keeping the tag vocabulary clean.
 
 Pass `--source <url>` once for each authoritative source you consulted during
 the **Research first** step — the research trail, not just the ones you cited

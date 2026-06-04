@@ -12,10 +12,10 @@
   </div>
   {{template "themeToggle" .}}
 </div>
-{{if .Tutorials}}
+{{if .Groups}}
 <div class="controls">
   <div class="toolbar">
-    <input type="search" id="searchInput" class="search-input" placeholder="Search by title, topic, or tag…" aria-label="Search tutorials" autocomplete="off">
+    <input type="search" id="searchInput" class="search-input" placeholder="Search by title, topic, tag, repo, or version…" aria-label="Search tutorials" autocomplete="off">
     <select id="sortSelect" class="sort-select" aria-label="Sort tutorials">
       <option value="newest">Newest</option>
       <option value="oldest">Oldest</option>
@@ -39,22 +39,31 @@
     <div class="filter-row" id="tagFilters" hidden>
       <span class="filter-label">Tags</span>
     </div>
+    <div class="filter-row" id="versionFilters" hidden>
+      <span class="filter-label">Versions</span>
+    </div>
   </div>
 </div>
-{{range .Tutorials}}
-<div class="tutorial" data-title="{{.Title}}" data-slug="{{.Slug}}" data-topic="{{.Topic}}" data-tags="{{range .Tags}}{{.}},{{end}}" data-status="{{.Status}}" data-created="{{.Created.Format "2006-01-02T15:04:05Z07:00"}}" data-series="{{.IsSeries}}">
-  <div class="tutorial-body">
-    <a class="tutorial-link" href="/{{.Slug}}/">{{.Title}}</a>
-    <div class="meta">{{if .IsSeries}}{{len .Parts}} parts{{else}}single tutorial{{end}} · {{.Created.Format "Jan 2, 2006"}}{{if .Sources}} · {{len .Sources}} source{{if ne (len .Sources) 1}}s{{end}}{{end}}</div>
-    {{if .Tags}}<div class="tags">{{range .Tags}}<span class="tag">{{.}}</span>{{end}}</div>{{end}}
+{{range .Groups}}
+<details class="repo-group" open>
+  <summary class="repo-group-summary"><span class="repo-group-name">{{.Name}}</span><span class="repo-group-count">{{len .Tutorials}}</span></summary>
+  {{range .Tutorials}}
+  <div class="tutorial" data-title="{{.Title}}" data-slug="{{.Slug}}" data-topic="{{.Topic}}" data-tags="{{range .Tags}}{{.}},{{end}}" data-repo="{{.RepoDisplay}}" data-tools="{{range .Tools}}{{.Name}}{{if .Version}} {{.Version}}{{end}},{{end}}" data-status="{{.Status}}" data-created="{{.Created.Format "2006-01-02T15:04:05Z07:00"}}" data-series="{{.IsSeries}}">
+    <div class="tutorial-body">
+      <a class="tutorial-link" href="/{{.Slug}}/">{{.Title}}</a>
+      <div class="meta">{{if .IsSeries}}{{len .Parts}} parts{{else}}single tutorial{{end}} · {{.Created.Format "Jan 2, 2006"}}{{if .Sources}} · {{len .Sources}} source{{if ne (len .Sources) 1}}s{{end}}{{end}}</div>
+      {{if .Tools}}<div class="versions">{{range .Tools}}<span class="version">{{.Name}}{{if .Version}} {{.Version}}{{end}}</span>{{end}}</div>{{end}}
+      {{if .Tags}}<div class="tags">{{range .Tags}}<span class="tag">{{.}}</span>{{end}}</div>{{end}}
+    </div>
+    <div class="tutorial-actions">
+      {{template "badge" .Status}}
+      <form method="POST" action="/-/delete/{{.Slug}}" class="delete-form" data-tutorial-title="{{.Title}}">
+        <button type="submit" class="delete-btn" aria-label="Delete tutorial" title="Delete tutorial">×</button>
+      </form>
+    </div>
   </div>
-  <div class="tutorial-actions">
-    {{template "badge" .Status}}
-    <form method="POST" action="/-/delete/{{.Slug}}" class="delete-form" data-tutorial-title="{{.Title}}">
-      <button type="submit" class="delete-btn" aria-label="Delete tutorial" title="Delete tutorial">×</button>
-    </form>
-  </div>
-</div>
+  {{end}}
+</details>
 {{end}}
 <div class="no-results" id="noResults" hidden>No tutorials match your search.</div>
 {{else}}
@@ -96,11 +105,14 @@
     });
   })();
   // Client-side search / filter / sort. Metadata only — matches the data-*
-  // attributes the template renders, so there are no server round-trips. With
-  // JS off, every card stays visible (.hidden is only ever set here).
+  // attributes the template renders, so there are no server round-trips. Cards
+  // live inside per-repo <details> groups; sorting reorders within each group
+  // and a group whose cards are all filtered out is hidden. With JS off, every
+  // card and group stays visible (.hidden is only ever set here).
   (function(){
     var cards = Array.prototype.slice.call(document.querySelectorAll('.tutorial'));
     if (!cards.length) return;
+    var groups = Array.prototype.slice.call(document.querySelectorAll('.repo-group'));
     var search = document.getElementById('searchInput');
     var sortSel = document.getElementById('sortSelect');
     var filterToggle = document.getElementById('filterToggle');
@@ -108,8 +120,8 @@
     var statusRow = document.getElementById('statusFilters');
     var typeRow = document.getElementById('typeFilters');
     var tagRow = document.getElementById('tagFilters');
+    var versionRow = document.getElementById('versionFilters');
     var noResults = document.getElementById('noResults');
-    var container = cards[0].parentNode;
 
     // Collapse the filter panel by default — calmer first view. Doing this in JS
     // (not via a static `hidden`) keeps every pill visible when JS is off.
@@ -119,71 +131,97 @@
       filterToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
 
-    function cardTags(card){
-      return (card.dataset.tags || '').split(',').map(function(s){return s.trim();}).filter(Boolean);
+    function listVals(card, key){
+      return (card.dataset[key] || '').split(',').map(function(s){return s.trim();}).filter(Boolean);
     }
+    function cardTags(card){ return listVals(card, 'tags'); }
+    function cardTools(card){ return listVals(card, 'tools'); }
     function activeValues(row, key){
+      if (!row) return [];
       return Array.prototype.slice.call(row.querySelectorAll('[aria-pressed="true"]'))
         .map(function(b){ return b.dataset[key]; });
     }
 
-    // Build tag-filter pills from the union of every card's tags.
-    var tagSet = {};
-    cards.forEach(function(c){ cardTags(c).forEach(function(t){ tagSet[t] = true; }); });
-    var tagNames = Object.keys(tagSet).sort();
-    if (tagNames.length){
-      tagNames.forEach(function(t){
+    // Build dynamic filter pills from the union of a value across all cards.
+    function buildPills(row, key, values){
+      if (!row || !values.length) return;
+      values.forEach(function(v){
         var b = document.createElement('button');
         b.type = 'button';
         b.className = 'filter-pill';
         b.setAttribute('aria-pressed', 'false');
-        b.dataset.tag = t;
-        b.textContent = t;
-        tagRow.appendChild(b);
+        b.dataset[key] = v;
+        b.textContent = v;
+        row.appendChild(b);
       });
-      tagRow.hidden = false;
+      row.hidden = false;
     }
+    var tagSet = {}, verSet = {};
+    cards.forEach(function(c){
+      cardTags(c).forEach(function(t){ tagSet[t] = true; });
+      cardTools(c).forEach(function(v){ verSet[v] = true; });
+    });
+    buildPills(tagRow, 'tag', Object.keys(tagSet).sort());
+    buildPills(versionRow, 'version', Object.keys(verSet).sort());
 
     function apply(){
       var q = (search.value || '').trim().toLowerCase();
       var statuses = activeValues(statusRow, 'status');
       var types = activeValues(typeRow, 'series');
       var tags = activeValues(tagRow, 'tag');
+      var versions = activeValues(versionRow, 'version');
       var visible = 0;
       cards.forEach(function(card){
         var hay = (card.dataset.title + ' ' + card.dataset.slug + ' ' +
-                   card.dataset.topic + ' ' + card.dataset.tags).toLowerCase();
-        var ct = cardTags(card);
+                   card.dataset.topic + ' ' + card.dataset.tags + ' ' +
+                   card.dataset.repo + ' ' + card.dataset.tools).toLowerCase();
+        var ct = cardTags(card), cv = cardTools(card);
         var show = (!q || hay.indexOf(q) !== -1)
           && (!statuses.length || statuses.indexOf(card.dataset.status) !== -1)
           && (!types.length || types.indexOf(card.dataset.series) !== -1)
-          && (!tags.length || tags.some(function(t){ return ct.indexOf(t) !== -1; }));
+          && (!tags.length || tags.some(function(t){ return ct.indexOf(t) !== -1; }))
+          && (!versions.length || versions.some(function(v){ return cv.indexOf(v) !== -1; }));
         card.classList.toggle('hidden', !show);
         if (show) visible++;
+      });
+      // Hide any repo group with no visible cards; keep its header count in sync.
+      groups.forEach(function(g){
+        var shown = g.querySelectorAll('.tutorial:not(.hidden)').length;
+        g.classList.toggle('hidden', shown === 0);
+        var count = g.querySelector('.repo-group-count');
+        if (count) count.textContent = shown;
       });
       noResults.hidden = visible !== 0;
       // Surface how many pill filters are active so collapsing the panel never
       // hides that filtering is on.
-      var active = statuses.length + types.length + tags.length;
+      var active = statuses.length + types.length + tags.length + versions.length;
       filterToggle.textContent = active ? 'Filters · ' + active : 'Filters';
       filterToggle.classList.toggle('has-active', active > 0);
     }
 
-    function sort(){
+    function sortCards(list){
       var mode = sortSel.value;
-      cards.slice().sort(function(a, b){
+      return list.slice().sort(function(a, b){
         if (mode === 'title'){
           return a.dataset.title.toLowerCase().localeCompare(b.dataset.title.toLowerCase());
         }
         var da = a.dataset.created, db = b.dataset.created;
         if (mode === 'oldest') return da < db ? -1 : da > db ? 1 : 0;
         return da > db ? -1 : da < db ? 1 : 0; // newest first
-      }).forEach(function(c){ container.insertBefore(c, noResults); });
+      });
+    }
+    function sort(){
+      // Reorder cards within each group (the summary stays the first child).
+      groups.forEach(function(g){
+        var gcards = Array.prototype.slice.call(g.querySelectorAll('.tutorial'));
+        sortCards(gcards).forEach(function(c){ g.appendChild(c); });
+      });
     }
 
     search.addEventListener('input', apply);
     sortSel.addEventListener('change', sort);
-    [statusRow, typeRow, tagRow].forEach(function(row){
+    [statusRow, typeRow, tagRow, versionRow].forEach(function(row){
+      if (!row) return;
       row.addEventListener('click', function(e){
         var btn = e.target.closest('.filter-pill');
         if (!btn) return;
@@ -192,7 +230,7 @@
       });
     });
 
-    sort();   // default ordering (newest)
+    sort();   // default ordering (newest) within each group
     apply();
   })();
 </script>

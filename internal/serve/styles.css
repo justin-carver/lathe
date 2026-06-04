@@ -406,6 +406,24 @@ body.list h1{font-family:var(--font-display);font-size:clamp(1.7rem,1.3rem + 1.4
 .tags{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.45rem}
 .tag{font-family:var(--font-display);font-size:.72rem;font-weight:600;color:var(--text-subtle);background:var(--surface-sunken);border:1px solid var(--border);padding:.12rem .5rem;border-radius:9999px;line-height:1.4}
 
+/* Version chips — the languages/tools a tutorial targets. Distinguished from
+   tag pills by the accent-soft fill so versions read as a different axis. */
+.versions{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.45rem}
+.version{font-family:var(--font-mono);font-size:.7rem;font-weight:500;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-soft);padding:.12rem .5rem;border-radius:var(--radius-sm);line-height:1.4}
+
+/* Repo grouping — each repo's tutorials sit under a collapsible <details>. The
+   "No repo" bucket uses the same chrome. With JS off, groups stay open/visible
+   (.hidden is only ever set by the list script). */
+.repo-group{margin:0 0 1.1rem}
+.repo-group.hidden{display:none}
+.repo-group-summary{display:flex;align-items:center;gap:.5rem;cursor:pointer;list-style:none;padding:.3rem .1rem;border-bottom:1px solid var(--border);margin-bottom:.35rem;font-family:var(--font-display)}
+.repo-group-summary::-webkit-details-marker{display:none}
+.repo-group-summary::before{content:'▸';color:var(--text-faint);font-size:.8rem;transition:transform var(--transition)}
+.repo-group[open] > .repo-group-summary::before{transform:rotate(90deg)}
+.repo-group-name{font-weight:600;font-size:.95rem;color:var(--text)}
+.repo-group-count{font-size:.72rem;font-weight:600;color:var(--text-faint);background:var(--surface-sunken);border:1px solid var(--border);border-radius:9999px;padding:.04rem .45rem;line-height:1.5}
+.repo-group-summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
 .tutorial.hidden{display:none}
 .no-results{color:var(--text-faint);text-align:center;padding:2.5rem 1rem;font-size:.98rem;font-style:italic}
 

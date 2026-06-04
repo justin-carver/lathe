@@ -13,6 +13,7 @@ Add the next part to a stored tutorial. Triggered by `/lathe-extend <slug> [guid
    - The **controlling example** and the **fixed numbers** (sample rate, page size, buffer size) — reuse them exactly; don't invent new ones.
    - The **controlling metaphor**, if any, and whether a prior part already retired it (if retired, don't resurrect it).
    - The **voice** and the level of the reader.
+   - The **repo and pinned tool versions** in `metadata.json` (`repo`, `repo_branch`, `tools`) — the new part *inherits* them. Write against the same versions; don't silently bump to a newer toolchain. (If the reader explicitly wants to move the tutorial to a new version, that's a heads-up that it may be time for a fresh tutorial, not a quiet drift — flag it rather than re-pinning here.)
    - Where the previous part's **"What's next"** pointed — that's your mandate for this part unless the user's guidance redirects it.
 
 2. **Research first.** Same discipline as the `lathe` skill's "Research first" step: actually open 3–8 authoritative sources for whatever this new part introduces, take notes with URLs beside the load-bearing facts, and ground or `[!UNVERIFIED]`-flag every load-bearing claim. New material gets the same scrutiny as Part 1 did. No web access? Say so in one line and write conservatively, flagging the load-bearing unknowns.

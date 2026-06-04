@@ -12,12 +12,23 @@ import (
 	"github.com/devenjarvis/lathe/internal/config"
 )
 
+// StoreOptions carries the optional metadata captured at store time. All fields
+// are normalized by Store before they land in metadata.json. Keeping them in a
+// struct (rather than a long positional signature) lets callers set only what
+// they have and keeps call sites readable as the captured set grows.
+type StoreOptions struct {
+	Tags    []string // search tags (NormalizeTags)
+	Sources []string // research-trail URLs (NormalizeSources)
+	Repo    string   // git remote the tutorial was written for (NormalizeRepo)
+	Branch  string   // branch the tutorial targets (only meaningful with Repo)
+	Tools   []Tool   // languages/tools + versions (NormalizeTools)
+}
+
 // Store copies a tutorial directory into ~/.lathe/tutorials/ and writes its
 // metadata with status=unverified. Verification is opt-in and never auto-runs
-// here — the user triggers it separately via the /lathe-verify skill. sources
-// is the research trail (URLs the skill consulted); both tags and sources are
-// normalized before they land in metadata.
-func Store(srcPath string, tags, sources []string) (*Tutorial, error) {
+// here — the user triggers it separately via the /lathe-verify skill. Every
+// field of opts is normalized before it lands in metadata.
+func Store(srcPath string, opts StoreOptions) (*Tutorial, error) {
 	slug := filepath.Base(strings.TrimSuffix(srcPath, string(filepath.Separator)))
 	// The generation skill writes to /tmp/lathe-<slug>/ (the "lathe-" prefix
 	// namespaces the temp dir). Strip it so the prefix doesn't leak into the
@@ -36,15 +47,25 @@ func Store(srcPath string, tags, sources []string) (*Tutorial, error) {
 
 	parts := detectParts(destDir)
 
+	repo := NormalizeRepo(opts.Repo)
+	branch := strings.TrimSpace(opts.Branch)
+	if repo == "" {
+		// A branch with no repo is meaningless — don't record a dangling branch.
+		branch = ""
+	}
+
 	t := &Tutorial{
-		Slug:    slug,
-		Title:   SlugToTitle(slug),
-		Topic:   slug,
-		Created: time.Now().UTC(),
-		Status:  StatusUnverified,
-		Tags:    NormalizeTags(tags),
-		Parts:   parts,
-		Sources: NormalizeSources(sources),
+		Slug:       slug,
+		Title:      SlugToTitle(slug),
+		Topic:      slug,
+		Created:    time.Now().UTC(),
+		Status:     StatusUnverified,
+		Tags:       NormalizeTags(opts.Tags),
+		Parts:      parts,
+		Repo:       repo,
+		RepoBranch: branch,
+		Tools:      NormalizeTools(opts.Tools),
+		Sources:    NormalizeSources(opts.Sources),
 	}
 
 	if err := WriteMetadata(destDir, t); err != nil {
@@ -169,6 +190,88 @@ func NormalizeSources(sources []string) []string {
 		}
 		seen[s] = struct{}{}
 		out = append(out, s)
+	}
+	return out
+}
+
+// NormalizeRepo canonicalizes a git remote into a stable host/org/repo grouping
+// key. It strips the scheme (https://, http://, ssh://, git://) and any userinfo
+// (git@), rewrites scp-style "host:org/repo" into "host/org/repo", drops a port
+// and a trailing ".git"/"/", and lowercases the host so the same repo addressed
+// over https or ssh groups together. Returns "" for empty input so Repo stays
+// omitempty in metadata.json.
+//
+//	https://github.com/org/repo.git   → github.com/org/repo
+//	git@github.com:org/repo.git       → github.com/org/repo
+//	ssh://git@github.com:22/org/repo   → github.com/org/repo
+func NormalizeRepo(raw string) string {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return ""
+	}
+
+	// Drop scheme (scheme://...). Whether one was present disambiguates the
+	// meaning of a later ":" below.
+	hadScheme := false
+	if i := strings.Index(s, "://"); i != -1 {
+		s = s[i+3:]
+		hadScheme = true
+	}
+
+	// Drop userinfo (e.g. git@) when it precedes the host.
+	if at := strings.Index(s, "@"); at != -1 {
+		if sep := strings.IndexAny(s, "/:"); sep == -1 || at < sep {
+			s = s[at+1:]
+		}
+	}
+
+	// Resolve the first ":". A scheme URL ("ssh://host:22/…") can carry a numeric
+	// :port we drop. The scp short form ("host:org/repo") never carries a port —
+	// the colon is always the host/path separator — so we always rewrite it to
+	// "/", which also keeps a purely-numeric first path segment intact.
+	if i := strings.Index(s, ":"); i != -1 {
+		rest := s[i+1:]
+		j := 0
+		for j < len(rest) && rest[j] >= '0' && rest[j] <= '9' {
+			j++
+		}
+		if hadScheme && j > 0 && (j == len(rest) || rest[j] == '/') {
+			s = s[:i] + rest[j:] // scheme URL → numeric is a port, drop it
+		} else {
+			s = s[:i] + "/" + rest // scp short form → path separator
+		}
+	}
+
+	s = strings.TrimSuffix(s, "/")
+	s = strings.TrimSuffix(s, ".git")
+	s = strings.TrimSuffix(s, "/")
+
+	// Lowercase only the host (first segment); paths can be case-sensitive.
+	if i := strings.Index(s, "/"); i != -1 {
+		s = strings.ToLower(s[:i]) + s[i:]
+	} else {
+		s = strings.ToLower(s)
+	}
+	return s
+}
+
+// NormalizeTools cleans a tool list: trims and lowercases each Name, trims the
+// Version (preserving its case — versions are identifiers), drops entries with
+// an empty name, and de-dupes by name keeping the first occurrence. Returns nil
+// for an all-empty input so Tools stays omitempty in metadata.json.
+func NormalizeTools(tools []Tool) []Tool {
+	seen := make(map[string]struct{}, len(tools))
+	var out []Tool
+	for _, t := range tools {
+		name := strings.ToLower(strings.TrimSpace(t.Name))
+		if name == "" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		out = append(out, Tool{Name: name, Version: strings.TrimSpace(t.Version)})
 	}
 	return out
 }
