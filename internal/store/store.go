@@ -17,6 +17,10 @@ import (
 // here — callers trigger it separately via verify.StartVerification.
 func Store(srcPath string) (*Tutorial, error) {
 	slug := filepath.Base(strings.TrimSuffix(srcPath, string(filepath.Separator)))
+	// The generation skill writes to /tmp/lathe-<slug>/ (the "lathe-" prefix
+	// namespaces the temp dir). Strip it so the prefix doesn't leak into the
+	// stored slug — and from there into the derived title.
+	slug = strings.TrimPrefix(slug, "lathe-")
 
 	tutorialsDir, err := config.TutorialsDir()
 	if err != nil {

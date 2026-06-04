@@ -28,6 +28,30 @@ func TestStoreSingleTutorial(t *testing.T) {
 	}
 }
 
+func TestStoreStripsLathePrefixFromSlug(t *testing.T) {
+	// The generation skill writes to /tmp/lathe-<slug>/; the "lathe-" prefix
+	// must not leak into the stored slug or the derived title.
+	src := filepath.Join(t.TempDir(), "lathe-digital-synth-zig")
+	if err := os.MkdirAll(src, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "index.md"), []byte("# Hello"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", t.TempDir())
+
+	tut, err := store.Store(src)
+	if err != nil {
+		t.Fatalf("Store() error = %v", err)
+	}
+	if tut.Slug != "digital-synth-zig" {
+		t.Errorf("Store() Slug = %q, want %q", tut.Slug, "digital-synth-zig")
+	}
+	if tut.Title != "Digital Synth Zig" {
+		t.Errorf("Store() Title = %q, want %q", tut.Title, "Digital Synth Zig")
+	}
+}
+
 func TestStoreSeriesTutorial(t *testing.T) {
 	src := t.TempDir()
 	for _, name := range []string{"part-01.md", "part-02.md", "part-03.md"} {
