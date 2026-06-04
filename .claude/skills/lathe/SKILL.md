@@ -25,7 +25,7 @@ Before you write a single sentence, **go read**. Use your web search and fetch t
 - **Read for the load-bearing facts** you'll commit to in the tutorial: exact API/function signatures, default values, flag names, version numbers, sample rates, page sizes, semantic guarantees, error messages, historical claims. Take notes with the URL beside each fact — deep-link to the section or anchor, not the homepage.
 - **Ground the prose in what you read, not what you recall.** When a source contradicts your memory, the source wins. When you can't find a source for a load-bearing claim, that's not a green light to assert it confidently — mark it with `[!UNVERIFIED]` (see Callouts) and tell the reader what to check.
 - **Keep the list of URLs you consulted.** You'll cite the load-bearing ones inline, list them in each part's `## Sources`, and pass them to `lathe store --source` (see "After writing") so the research trail is recorded as provenance.
-- **No web tools in this session?** Say so to the user in one line ("Heads up — I don't have web access here, so I'm working from training knowledge; I've marked the claims I couldn't confirm"). Then write more conservatively: lean harder on `[!UNVERIFIED]`, claim fewer exact numbers, and prefer "check your version's docs" over a guessed default.
+- **No web tools in this session?** Say so to the user in one line ("Heads up — I don't have web access here, so I'm working from training knowledge; I've marked the load-bearing claims I couldn't confirm"). Then write more conservatively: claim fewer exact numbers, prefer "check your version's docs" over a guessed default, and `[!UNVERIFIED]`-flag the load-bearing unknowns (still only the load-bearing ones — don't paper the page with caveats).
 
 ## Always write Part 1 only
 
@@ -239,9 +239,9 @@ Other callout types:
 - `> [!TIP]` — handy shortcut, not load-bearing.
 - `> [!PREDICT]` — prediction prompt before a Checkpoint or surprising output. One line only.
 - `> [!RECALL]` — spaced-retrieval prompt at the top of Part N≥2. One question, load-bearing concept only.
-- `> [!UNVERIFIED]` — a load-bearing claim you could **not** ground in a source you read. State what you believe and, in the same breath, what the reader should check. *"The default ring-buffer size is 4096 frames — I'm working from memory here and couldn't find this in the docs; confirm it with `default_config()` before you rely on it."* Honest uncertainty beats a confident guess that sends the reader down an hour-long dead end.
+- `> [!UNVERIFIED]` — a **genuinely load-bearing** claim you could not ground in a source you read: one the reader will *act on* and that would cost them real time if it's wrong (a default they'll rely on, a flag they'll type, a signature they'll call). State what you believe and, in the same breath, what to check. *"The default ring-buffer size is 4096 frames — I'm working from memory here and couldn't find this in the docs; confirm it with `default_config()` before you rely on it."* Reserve it for those; not for ordinary hedging or background colour you're merely unsure about. If a claim isn't load-bearing, either confirm it or cut it — don't flag it.
 
-Use them sparingly — except `[!UNVERIFIED]`, which you use exactly as often as honesty requires (more when you had no web access). One or two of the others per part, max; a page full of callouts is clutter. `[!PREDICT]` and `[!RECALL]` are pedagogical, and `[!UNVERIFIED]` is a provenance signal — the verifier skips all three.
+Use them sparingly — `[!UNVERIFIED]` included. Reach for it only when a load-bearing unknown genuinely warrants it (a little more often when you had no web access, but still only for the load-bearing ones). One or two of the others per part, max; a page peppered with caveats reads as low-confidence and is its own kind of clutter. `[!PREDICT]` and `[!RECALL]` are pedagogical, and `[!UNVERIFIED]` is a provenance signal — the verifier skips all three.
 
 ## Visual artifacts
 
