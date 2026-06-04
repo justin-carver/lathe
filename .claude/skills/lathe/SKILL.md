@@ -298,8 +298,14 @@ Decide the slug before writing. Never write `index.md` or multiple parts.
 Run:
 
 ```bash
-lathe store /tmp/lathe-<slug>
+lathe store /tmp/lathe-<slug> --tag <a> --tag <b> --tag <c>
 ```
+
+Choose **2–5** lowercase tags so the tutorial is findable in `lathe serve`'s
+search and tag filters. Cover, where they apply: the language/runtime (`zig`,
+`rust`, `go`), the domain (`audio`, `compilers`, `databases`), and the core
+technique (`parsing`, `dsp`, `concurrency`). Prefer short, reusable tags that
+will group naturally with other tutorials over hyper-specific one-offs.
 
 Then tell the user:
 

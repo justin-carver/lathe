@@ -24,6 +24,7 @@ type Tutorial struct {
 	Topic       string    `json:"topic"`
 	Created     time.Time `json:"created"`
 	Status      Status    `json:"status"`
+	Tags        []string  `json:"tags,omitempty"`
 	Parts       []string  `json:"parts,omitempty"`
 	PendingPart string    `json:"pending_part,omitempty"`
 }

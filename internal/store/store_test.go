@@ -73,6 +73,45 @@ func TestStoreSeriesTutorial(t *testing.T) {
 	}
 }
 
+func TestStorePersistsAndNormalizesTags(t *testing.T) {
+	src := t.TempDir()
+	if err := os.WriteFile(filepath.Join(src, "index.md"), []byte("# Hello"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	tut, err := store.Store(src, "  Rust ", "audio", "rust", "")
+	if err != nil {
+		t.Fatalf("Store() error = %v", err)
+	}
+	want := []string{"rust", "audio"} // trimmed, lowercased, de-duped, empty dropped
+	if got := tut.Tags; !equalStrings(got, want) {
+		t.Errorf("Store() Tags = %v, want %v", got, want)
+	}
+
+	// Tags must round-trip through metadata.json.
+	read, err := store.ReadMetadata(filepath.Join(home, ".lathe", "tutorials", tut.Slug))
+	if err != nil {
+		t.Fatalf("ReadMetadata() error = %v", err)
+	}
+	if !equalStrings(read.Tags, want) {
+		t.Errorf("ReadMetadata() Tags = %v, want %v", read.Tags, want)
+	}
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func TestStoreDefaultsToUnverified(t *testing.T) {
 	src := t.TempDir()
 	if err := os.WriteFile(filepath.Join(src, "index.md"), []byte("# Hello"), 0644); err != nil {

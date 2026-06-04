@@ -15,7 +15,7 @@ import (
 // Store copies a tutorial directory into ~/.lathe/tutorials/ and writes its
 // metadata with status=unverified. Verification is opt-in and never auto-runs
 // here — the user triggers it separately via the /lathe-verify skill.
-func Store(srcPath string) (*Tutorial, error) {
+func Store(srcPath string, tags ...string) (*Tutorial, error) {
 	slug := filepath.Base(strings.TrimSuffix(srcPath, string(filepath.Separator)))
 	// The generation skill writes to /tmp/lathe-<slug>/ (the "lathe-" prefix
 	// namespaces the temp dir). Strip it so the prefix doesn't leak into the
@@ -40,6 +40,7 @@ func Store(srcPath string) (*Tutorial, error) {
 		Topic:   slug,
 		Created: time.Now().UTC(),
 		Status:  StatusUnverified,
+		Tags:    NormalizeTags(tags),
 		Parts:   parts,
 	}
 
@@ -125,6 +126,26 @@ func Delete(slug string) error {
 		return fmt.Errorf("not a tutorial directory: %q", slug)
 	}
 	return os.RemoveAll(target)
+}
+
+// NormalizeTags cleans a tag list: trims surrounding whitespace, lowercases,
+// drops empties, and removes duplicates while preserving first-seen order.
+// Returns nil for an all-empty input so it stays omitempty in metadata.json.
+func NormalizeTags(tags []string) []string {
+	seen := make(map[string]struct{}, len(tags))
+	var out []string
+	for _, t := range tags {
+		t = strings.ToLower(strings.TrimSpace(t))
+		if t == "" {
+			continue
+		}
+		if _, ok := seen[t]; ok {
+			continue
+		}
+		seen[t] = struct{}{}
+		out = append(out, t)
+	}
+	return out
 }
 
 func SlugToTitle(slug string) string {

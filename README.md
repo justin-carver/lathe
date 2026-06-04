@@ -8,7 +8,7 @@ Lathe targets topics where good documentation is scarce — *"build a digital sy
 
 Two layers with a clean boundary:
 
-- **Claude Code skills** — generate and work with tutorials, all run in your **interactive** Claude Code session: `/lathe` writes `part-01.md`, `/lathe-extend` adds the next part, `/lathe-verify` works through a tutorial to confirm it compiles and runs, and `/lathe-ask` answers questions about a part you're reading. Running them interactively keeps the work on your Claude subscription (headless `claude -p` is metered as of 2026-06-15; interactive use is not).
+- **Claude Code skills** — generate and work with tutorials, all run in your **interactive** Claude Code session: `/lathe` writes `part-01.md`, `/lathe-extend` adds the next part, `/lathe-verify` works through a tutorial to confirm it compiles and runs, `/lathe-ask` answers questions about a part you're reading, and `/lathe-tag` adds search tags to existing tutorials. Running them interactively keeps the work on your Claude subscription (headless `claude -p` is metered as of 2026-06-15; interactive use is not).
 - **`lathe` CLI** (Go) — copies tutorials into `~/.lathe/tutorials/`, serves the rendered output at `http://localhost:4242`, and owns all durable state. It never calls `claude` itself: the web buttons and the `lathe verify`/`lathe extend` commands just hand you the skill command to paste into your session, and the skills call back into the CLI (`lathe store`, `lathe verify-result`, `lathe extend-start`/`extend-commit`) to record results.
 
 ```
@@ -50,7 +50,7 @@ cd lathe
 go build -o lathe
 ```
 
-The skills live under `.claude/skills/` in this repo — `lathe/`, `lathe-verify/`, `lathe-extend/`, and `lathe-ask/`, each a `SKILL.md`. Copy them into your own project's `.claude/skills/` (or your user-level skills directory) so Claude Code can discover them.
+The skills live under `.claude/skills/` in this repo — `lathe/`, `lathe-verify/`, `lathe-extend/`, `lathe-ask/`, and `lathe-tag/`, each a `SKILL.md`. Copy them into your own project's `.claude/skills/` (or your user-level skills directory) so Claude Code can discover them.
 
 ## Usage
 
@@ -72,13 +72,31 @@ Other commands:
 lathe list               # show all stored tutorials with status badges
 lathe open <slug>        # open a specific tutorial (requires lathe serve)
 lathe store <path>       # save a tutorial directory manually (status: unverified)
+lathe store <path> --tag rust --tag audio   # save with search tags
 lathe store <path> --verify   # save, then print the /lathe-verify command to run
 lathe verify <slug>      # print the /lathe-verify <slug> command to run in your session
 lathe extend <slug>      # print the /lathe-extend <slug> command to run in your session
+lathe tag <slug> --set rust,audio   # set/--add/--remove a tutorial's tags
 lathe rm <slug>          # delete a stored tutorial (prompts unless --force)
 ```
 
 You can also delete tutorials from the web UI — each row on the list page has a `×` button that removes the tutorial after a confirmation.
+
+## Finding tutorials
+
+As your library grows, the web list page (`lathe serve`) has a search box and
+filters to narrow it down — all client-side, so it stays fast and offline:
+
+- **Search** matches a tutorial's title, slug, topic, and tags.
+- **Sort** by newest, oldest, or title (A–Z).
+- **Filter** by status, by type (single vs. series), and by tag — each tutorial's
+  tags also show as pills on its card.
+
+Tags come from the `tags` field in `metadata.json`. New tutorials get them when
+`/lathe` passes `--tag` to `lathe store`; for tutorials made before tagging
+existed, run `/lathe-tag <slug>` in your session (or `/lathe-tag` to backfill
+every untagged one) — the skill reads the tutorial and records tags via
+`lathe tag`. Untagged tutorials still show up and stay searchable by title/topic.
 
 Default port is `4242`; override with `--port`.
 
@@ -107,7 +125,7 @@ Tutorials live globally in `~/.lathe/tutorials/`, one directory per slug:
   "topic": "build a digital synth in Zig",
   "created": "2026-05-03T19:00:00Z",
   "status": "unverified",
-  "series": true,
+  "tags": ["zig", "audio", "dsp"],
   "parts": ["part-01.md", "part-02.md", "part-03.md"]
 }
 ```
@@ -132,18 +150,18 @@ Because verification now runs in your own interactive session, it executes under
 
 - [`spf13/cobra`](https://github.com/spf13/cobra) — CLI command structure
 - [`yuin/goldmark`](https://github.com/yuin/goldmark) + [`goldmark-highlighting`](https://github.com/yuin/goldmark-highlighting) — markdown rendering with Chroma syntax highlighting
-- `claude` CLI — Claude Code, where the `/lathe`, `/lathe-verify`, `/lathe-extend`, and `/lathe-ask` skills run
+- `claude` CLI — Claude Code, where the `/lathe`, `/lathe-verify`, `/lathe-extend`, `/lathe-ask`, and `/lathe-tag` skills run
 
 ## Repository layout
 
 ```
 cmd/                CLI commands (root, list, open, rm, serve, store, verify, extend,
-                    verify-result, extend-start, extend-commit)
+                    verify-result, extend-start, extend-commit, tag)
 internal/config/    ~/.lathe/tutorials path resolution
 internal/store/     copy + metadata read/write, slug detection
 internal/serve/     HTTP server, markdown renderer, embedded HTML templates, handoff endpoints
 internal/extend/    NextPartFilename helper
-.claude/skills/     lathe, lathe-verify, lathe-extend, lathe-ask skills (user-invoked, interactive)
+.claude/skills/     lathe, lathe-verify, lathe-extend, lathe-ask, lathe-tag skills (user-invoked, interactive)
 docs/superpowers/   design spec and bootstrap plan
 main.go             cobra entrypoint
 ```

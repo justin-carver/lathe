@@ -61,6 +61,46 @@ func TestListPage(t *testing.T) {
 	}
 }
 
+func TestListPageRendersTagsAndControls(t *testing.T) {
+	dir := t.TempDir()
+	tutDir := filepath.Join(dir, "tagged-tutorial")
+	if err := os.MkdirAll(tutDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	tut := &store.Tutorial{
+		Slug:    "tagged-tutorial",
+		Title:   "Tagged Tutorial",
+		Status:  store.StatusVerified,
+		Created: time.Now(),
+		Tags:    []string{"rust", "audio"},
+	}
+	if err := os.WriteFile(filepath.Join(tutDir, "index.md"), []byte("# Index"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WriteMetadata(tutDir, tut); err != nil {
+		t.Fatal(err)
+	}
+
+	srv := serve.NewServer(dir)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	body := w.Body.String()
+	if !strings.Contains(body, `id="searchInput"`) {
+		t.Error("list page missing the search input control")
+	}
+	if !strings.Contains(body, `id="sortSelect"`) {
+		t.Error("list page missing the sort control")
+	}
+	if !strings.Contains(body, `data-tags="rust,audio,"`) {
+		t.Error("list page card missing data-tags attribute for search/filter")
+	}
+	if !strings.Contains(body, `<span class="tag">rust</span>`) {
+		t.Error("list page missing rendered tag pill")
+	}
+}
+
 func TestTutorialPage(t *testing.T) {
 	dir := t.TempDir()
 	makeTestTutorial(t, dir, "test-tutorial", false)

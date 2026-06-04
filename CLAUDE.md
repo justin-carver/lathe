@@ -18,13 +18,14 @@ cmd/
   verify.go, extend.go            print the /lathe-verify, /lathe-extend handoff command
   verify-result.go                lathe verify-result — skill records verify status/result
   extend-start.go, extend-commit.go    lathe extend-{start,commit} — skill reserves/records a part
+  tag.go                          lathe tag — skill sets/adds/removes a tutorial's search tags
 internal/
   config/                         TutorialsDir() → ~/.lathe/tutorials
   store/
     metadata.go                   Tutorial struct, Status enum, Read/WriteMetadata, VerifyResult
     store.go                      Store(), Delete(), copyDir/copyFile, detectParts, SlugToTitle, PromoteIndexToPart
   serve/
-    server.go                     net/http handlers (list, tutorial, part, delete)
+    server.go                     net/http handlers (list, tutorial, part, delete); list.html does client-side search/filter/sort
     ask.go, verify.go, extend.go  POST endpoints that return a paste-able skill command (handoff.go)
     renderer.go                   goldmark + chroma markdown rendering
     layout.html, list.html        embed.FS page templates
@@ -38,6 +39,7 @@ internal/
   lathe-verify/SKILL.md           /lathe-verify — runs verification interactively
   lathe-extend/SKILL.md           /lathe-extend — writes the next part interactively
   lathe-ask/SKILL.md              /lathe-ask — answers reader questions about a part
+  lathe-tag/SKILL.md              /lathe-tag — picks/backfills search tags for stored tutorials
 docs/design-system.md            design-system docs (tokens, type scale, components, how-to-add)
 docs/superpowers/                 specs/ and plans/
 ```
@@ -57,6 +59,7 @@ There is no top-level test runner script — tests are plain `go test`. The `/la
 - **`cmd/serve.go`** registers `--port` on its command's flags but stores it in the package-level `servePort` variable, which `cmd/open.go` also reads. Keep them in sync if you add new commands that need the port.
 - **`internal/serve/server.go`** uses Go 1.22+ method-and-pattern routing (`mux.HandleFunc("GET /{slug}/", …)`). `safeTutorialPath` defends against path traversal by checking the joined path stays under `tutorialsDir` — preserve that check on any new route.
 - **Handoff model (verify/extend/ask).** The Go binary spawns no `claude` subprocess. The web POST endpoints (`internal/serve/{ask,verify,extend}.go`) validate + conflict-guard, then return `{"command": "/lathe-… <slug> …"}` via `writeHandoff` (`handoff.go`); the templates render a copy-to-clipboard panel. The CLI `lathe verify`/`lathe extend` likewise just print the command. The actual work runs in the user's interactive session via the matching skill, which calls back into the CLI to mutate state: `/lathe-verify` → `lathe verify-result <slug> --status verifying` (in-flight badge) then a terminal `--status verified|failed|skipped [...]`; `/lathe-extend` → `lathe extend-start` (reserves the part, prints its filename, sets `extending`) then `lathe extend-commit`. **Status is set by the skill, never by the web/CLI handoff** — that's deliberate, so an unclicked button can't leave a badge stuck at `verifying`/`extending`.
+- **List-page search/filter/sort is client-side.** `handleList` renders every card with `data-*` attributes (title/slug/topic/tags/status/created/series) plus tag pills; the inline `<script>` in `list.html` does all search, tag/status/type filtering, and sorting in the browser — no new server round-trips, and it stays offline. The server is unchanged beyond the `Tags` field flowing through. Metadata-only by design: search never reads part bodies. Keep it progressive — with JS off, every card stays visible (`.hidden` is only ever set by that script). Tags are populated by `lathe store --tag` (from `/lathe`) and `lathe tag` (from `/lathe-tag`); `store.NormalizeTags` trims/lowercases/de-dupes and is the one place that vocabulary is canonicalized.
 - **HTML templates** are `embed.FS`-bundled (`internal/serve/*.html`) so the binary is self-contained. They use a small `add` funcMap for 1-indexed part numbering. `components.html` is parsed into **both** the layout and list template sets (with `funcMap` attached to both) so its shared partials are available everywhere — see `NewServer`.
 - **Design system**: `styles.css` is the single source of truth for all UI styling — light/dark color tokens, `@font-face`, base typography, and every component class. It's `go:embed`'d as `stylesCSS`, exposed to templates as `.CSS`, and injected inline via the `{{define "head"}}` partial (alongside `.HighlightCSS`) so there's no extra request and no FOUC. **Status and callout colors are CSS tokens in `styles.css`, not inline in the templates.** Full docs in `docs/design-system.md`.
 - **Fonts** are latin-subset `woff2` (`internal/serve/static/fonts/`), `go:embed`'d and served at flat `/_static/<name>.woff2` (single-segment route + explicit whitelist preserved; `handleStatic` resolves `.woff2` names into the `fonts/` subdir). The UI stays 100% offline.
@@ -67,12 +70,12 @@ There is no top-level test runner script — tests are plain `go test`. The `/la
 - One cobra subcommand per file in `cmd/`, registered via `init()` calling `rootCmd.AddCommand(...)`.
 - Errors flow up through `RunE`; the root `Execute()` exits non-zero on any error.
 - Keep `internal/` packages free of cobra imports — they should be usable from tests directly.
-- Skills are markdown files, all checked into `.claude/skills/<name>/SKILL.md` (`lathe`, `lathe-verify`, `lathe-extend`, `lathe-ask`) and user-invoked in an interactive session. None are embedded in the binary — the binary spawns no `claude`.
+- Skills are markdown files, all checked into `.claude/skills/<name>/SKILL.md` (`lathe`, `lathe-verify`, `lathe-extend`, `lathe-ask`, `lathe-tag`) and user-invoked in an interactive session. None are embedded in the binary — the binary spawns no `claude`.
 - Status values are an enum (`store.Status`): `unverified` (default after store; renders no badge), `verifying`, `verified`, `failed`, `skipped` (required tool not installed — not a failure), `extending`. New states should be added there and reflected in `cmd/list.go` `statusBadge`, the `{{define "badge"}}` partial in `components.html`, and the `--badge-*` tokens + `.badge.<status>` rule in `styles.css` (see "how to add a new status" in `docs/design-system.md`).
 
 ## Things to avoid
 
-- Verification is **opt-in / on-demand**: it runs only when the user asks (`/lathe-verify <slug>` in their session — surfaced by the `lathe verify` command, the `--verify` flag on `lathe store`, or the "Verify this tutorial" web button, all of which just hand off that command). Storing never auto-verifies; the default status is `unverified`. Don't re-introduce a Go-side verifier subprocess. Don't add a `lathe status` *read* command — status is surfaced via `lathe list` and the web UI (the `verify-result`/`extend-*` commands are write-only state mutations for skills).
+- Verification is **opt-in / on-demand**: it runs only when the user asks (`/lathe-verify <slug>` in their session — surfaced by the `lathe verify` command, the `--verify` flag on `lathe store`, or the "Verify this tutorial" web button, all of which just hand off that command). Storing never auto-verifies; the default status is `unverified`. Don't re-introduce a Go-side verifier subprocess. Don't add a `lathe status` *read* command — status is surfaced via `lathe list` and the web UI (the `verify-result`/`extend-*`/`tag` commands are write-only state mutations for skills).
 - Don't add tutorial editing or sharing commands without checking with the user — the v1 scope is deliberately narrow. (Deletion is supported via `lathe rm <slug>` and the `×` button on the web list page; both go through `store.Delete` / `safeTutorialPath`.)
 - Don't have the verify/extend skills edit `metadata.json` or `verify-result.json` directly — they call `lathe verify-result` / `lathe extend-commit` so the binary stays the sole writer of durable state. The verify skill is read-only with respect to the tutorial markdown.
 - Don't add OS-level sandboxing (sandbox-exec, Docker) for verification unless explicitly asked. With no subprocess, isolation is by instruction: the `/lathe-verify` skill builds in a fresh `mktemp -d` scratch dir under the user's normal interactive permission model.
