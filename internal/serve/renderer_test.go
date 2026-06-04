@@ -107,9 +107,9 @@ func TestRenderCalloutBlock(t *testing.T) {
 
 func TestRenderCalloutTypes(t *testing.T) {
 	cases := []struct {
-		marker     string
-		wantClass  string
-		wantLabel  string
+		marker    string
+		wantClass string
+		wantLabel string
 	}{
 		{"NOTE", "callout-note", "Note"},
 		{"TIP", "callout-tip", "Tip"},

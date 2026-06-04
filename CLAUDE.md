@@ -14,7 +14,7 @@ The boundary is strict: **skills generate content; the CLI owns durable state.**
 main.go                           cobra entrypoint
 cmd/
   root.go                         rootCmd ("lathe")
-  list.go, open.go, rm.go, serve.go, store.go    one subcommand per file
+  list.go, open.go, rm.go, serve.go, store.go, verify.go    one subcommand per file
 internal/
   config/                         TutorialsDir() → ~/.lathe/tutorials
   store/
@@ -25,7 +25,7 @@ internal/
     renderer.go                   goldmark + chroma markdown rendering
     layout.html, list.html        embed.FS templates
   verify/
-    verify.go                     SpawnVerifier — detached `claude` subprocess
+    verify.go                     StartVerification + SpawnVerifier — detached `claude` subprocess
     skills/lathe-verify.md        embedded skill (go:embed) shipped to subprocess temp dir
 .claude/skills/lathe/lathe.md     /lathe generation skill (user-invoked)
 docs/superpowers/                 specs/ and plans/
@@ -45,8 +45,8 @@ There is no top-level test runner script — tests are plain `go test`. The `/la
 
 - **`cmd/serve.go`** registers `--port` on its command's flags but stores it in the package-level `servePort` variable, which `cmd/open.go` also reads. Keep them in sync if you add new commands that need the port.
 - **`internal/serve/server.go`** uses Go 1.22+ method-and-pattern routing (`mux.HandleFunc("GET /{slug}/", …)`). `safeTutorialPath` defends against path traversal by checking the joined path stays under `tutorialsDir` — preserve that check on any new route.
-- **`internal/store/store.go`** writes `metadata.json` *before* spawning the verifier so the UI can show the `verifying` badge even if subprocess spawn fails. The `TestStoreWithVerifyStatus` test depends on this ordering.
-- **`internal/verify/verify.go`** embeds `skills/lathe-verify.md` via `//go:embed` and writes it into a fresh temp dir per invocation, then runs `claude --project-dir <temp> --dangerously-skip-permissions -p <prompt>`. The subprocess is detached; a goroutine `cmd.Wait()`s only to clean up the temp dir.
+- **`internal/verify/verify.go`** `StartVerification` writes `metadata.json` with status=`verifying` *before* spawning the verifier so the UI can show the in-flight badge even if subprocess spawn fails. The `TestStartVerificationSetsVerifying` test depends on this ordering. It conflict-guards against an already `verifying`/`extending` tutorial. All three triggers (`lathe verify`, `lathe store --verify`, the web button) funnel through it.
+- **`internal/verify/verify.go`** embeds `skills/lathe-verify.md` via `//go:embed` and writes it into a fresh temp dir per invocation, then runs `claude --add-dir <temp> --add-dir <tutorialDir> --dangerously-skip-permissions -p <prompt>` with `cmd.Dir` pinned to the temp dir (so files land there, not in the user's repo). Runs under a `context.WithTimeout(verifyTimeout)` (20 min); the detached goroutine `cmd.Wait()`s, calls `finalizeVerify` to flip a still-`verifying` status to `failed` (timeout/crash fallback), captures output to `verify.log`, and cleans up the temp dir.
 - **HTML templates** are `embed.FS`-bundled (`internal/serve/*.html`) so the binary is self-contained. They use a small `add` funcMap for 1-indexed part numbering.
 - **Markdown rendering** uses goldmark with the `github` Chroma style for code highlighting; tests assert that `<pre>` and a highlight class appear in output, so don't disable highlighting without updating `renderer_test.go`.
 
@@ -56,14 +56,14 @@ There is no top-level test runner script — tests are plain `go test`. The `/la
 - Errors flow up through `RunE`; the root `Execute()` exits non-zero on any error.
 - Keep `internal/` packages free of cobra imports — they should be usable from tests directly.
 - Skills are markdown files. The `/lathe` skill is checked into `.claude/skills/`; the `/lathe-verify` skill is *embedded* into the binary because it ships with the runtime, not the repo.
-- Status values are an enum (`store.Status`): `verifying`, `verified`, `failed`. New states should be added there and reflected in `cmd/list.go` `statusBadge`, `layout.html`, and `list.html`.
+- Status values are an enum (`store.Status`): `unverified` (default after store; renders no badge), `verifying`, `verified`, `failed`, `skipped` (required tool not installed — not a failure), `extending`. New states should be added there and reflected in `cmd/list.go` `statusBadge`, `layout.html`, and `list.html`.
 
 ## Things to avoid
 
-- Don't add a `lathe verify` or `lathe status` command — verification is intentionally always automatic via `--verify` (see "Out of Scope" in the design spec).
+- Verification is **opt-in / on-demand**: it runs only when the user asks (the `lathe verify <slug>` command, the `--verify` flag on `lathe store`, or the "Verify this tutorial" web button — all routed through `verify.StartVerification`). Storing never auto-verifies; the default status is `unverified`. Don't add a `lathe status` command — status is surfaced via `lathe list` and the web UI.
 - Don't add tutorial editing or sharing commands without checking with the user — the v1 scope is deliberately narrow. (Deletion is supported via `lathe rm <slug>` and the `×` button on the web list page; both go through `store.Delete` / `safeTutorialPath`.)
 - Don't have the verify skill modify the tutorial source markdown — it's read-only with respect to the tutorial directory, and only writes `verify-result.json` and the `status` field of `metadata.json`.
-- Don't add OS-level sandboxing (sandbox-exec, Docker) for verification unless explicitly asked — soft isolation via `--project-dir` is the chosen tradeoff.
+- Don't add OS-level sandboxing (sandbox-exec, Docker) for verification unless explicitly asked — soft isolation via `cmd.Dir`-into-a-temp-dir plus scoped `--add-dir` grants is the chosen tradeoff.
 
 ## Commit style
 

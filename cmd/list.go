@@ -51,12 +51,16 @@ var listCmd = &cobra.Command{
 
 func statusBadge(s store.Status) string {
 	switch s {
+	case store.StatusUnverified:
+		return "" // calm default — no badge, matching the web UI
 	case store.StatusVerified:
 		return "✅ verified"
 	case store.StatusVerifying:
 		return "⏳ verifying"
 	case store.StatusFailed:
 		return "❌ failed"
+	case store.StatusSkipped:
+		return "⚠️ skipped"
 	case store.StatusExtending:
 		return "⏳ extending"
 	default:

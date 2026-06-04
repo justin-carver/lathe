@@ -19,12 +19,14 @@
       --link:#1d4ed8;--code-bg:#f3f4f6;--code-text:#1f2937;
       --badge-verified-bg:#d1fae5;--badge-verified-text:#065f46;--badge-verifying-bg:#fef3c7;--badge-verifying-text:#92400e;
       --badge-failed-bg:#fee2e2;--badge-failed-text:#991b1b;--badge-extending-bg:#e0f2fe;--badge-extending-text:#0369a1;
+      --badge-skipped-bg:#f3f4f6;--badge-skipped-text:#4b5563;
     }
     [data-theme="dark"]{
       --bg:#0f1115;--surface:#181b22;--border:#2a2f3a;--text:#e5e7eb;--text-faint:#9ca3af;--text-empty:#6b7280;
       --link:#93c5fd;--code-bg:#222632;--code-text:#e5e7eb;
       --badge-verified-bg:#064e3b;--badge-verified-text:#a7f3d0;--badge-verifying-bg:#78350f;--badge-verifying-text:#fde68a;
       --badge-failed-bg:#7f1d1d;--badge-failed-text:#fecaca;--badge-extending-bg:#0c2a40;--badge-extending-text:#7dd3fc;
+      --badge-skipped-bg:#2a2f3a;--badge-skipped-text:#cbd5e1;
     }
     *{box-sizing:border-box;margin:0;padding:0}
     html,body{overflow-x:hidden}
@@ -47,6 +49,7 @@
     .badge.verifying{background:var(--badge-verifying-bg);color:var(--badge-verifying-text)}
     .badge.failed{background:var(--badge-failed-bg);color:var(--badge-failed-text)}
     .badge.extending{background:var(--badge-extending-bg);color:var(--badge-extending-text)}
+    .badge.skipped{background:var(--badge-skipped-bg);color:var(--badge-skipped-text)}
     .empty{color:var(--text-empty);text-align:center;padding:3rem 1rem;font-size:.95rem}
     .empty code{background:var(--code-bg);color:var(--code-text);padding:.1rem .35rem;border-radius:3px;font-family:'JetBrains Mono','Fira Code',monospace;font-size:.85em}
     .theme-toggle{background:transparent;border:1px solid var(--border);color:var(--text-faint);font:inherit;font-size:.8rem;padding:.4rem .6rem;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem;flex-shrink:0;min-height:32px}
@@ -88,6 +91,7 @@
     {{if eq .Status "verified"}}<span class="badge verified">✅ Verified</span>
     {{else if eq .Status "verifying"}}<span class="badge verifying">⏳ Verifying…</span>
     {{else if eq .Status "failed"}}<span class="badge failed">❌ Failed</span>
+    {{else if eq .Status "skipped"}}<span class="badge skipped">⚠️ Skipped</span>
     {{else if eq .Status "extending"}}<span class="badge extending">⏳ Extending…</span>
     {{end}}
     <form method="POST" action="/-/delete/{{.Slug}}" class="delete-form" data-tutorial-title="{{.Title}}">

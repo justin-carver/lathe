@@ -94,6 +94,61 @@ func TestStatusExtendingValue(t *testing.T) {
 	}
 }
 
+func TestVerifyResultRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	original := &store.VerifyResult{
+		Status:     store.StatusFailed,
+		Part:       "part-02.md",
+		FailedStep: 4,
+		Error:      "zig build failed: error: expected ';'",
+		CheckedAt:  "2026-06-03T12:00:00Z",
+	}
+	if err := store.WriteVerifyResult(dir, original); err != nil {
+		t.Fatalf("WriteVerifyResult: %v", err)
+	}
+	got, err := store.ReadVerifyResult(dir)
+	if err != nil {
+		t.Fatalf("ReadVerifyResult: %v", err)
+	}
+	if got.Status != original.Status {
+		t.Errorf("Status = %q, want %q", got.Status, original.Status)
+	}
+	if got.Part != original.Part {
+		t.Errorf("Part = %q, want %q", got.Part, original.Part)
+	}
+	if got.FailedStep != original.FailedStep {
+		t.Errorf("FailedStep = %d, want %d", got.FailedStep, original.FailedStep)
+	}
+	if got.Error != original.Error {
+		t.Errorf("Error = %q, want %q", got.Error, original.Error)
+	}
+}
+
+func TestReadVerifyResultNotFound(t *testing.T) {
+	if _, err := store.ReadVerifyResult(t.TempDir()); err == nil {
+		t.Error("ReadVerifyResult() expected error for missing file, got nil")
+	}
+}
+
+func TestStatusValues(t *testing.T) {
+	cases := []struct {
+		status store.Status
+		want   string
+	}{
+		{store.StatusUnverified, "unverified"},
+		{store.StatusVerifying, "verifying"},
+		{store.StatusVerified, "verified"},
+		{store.StatusFailed, "failed"},
+		{store.StatusSkipped, "skipped"},
+		{store.StatusExtending, "extending"},
+	}
+	for _, c := range cases {
+		if string(c.status) != c.want {
+			t.Errorf("status = %q, want %q", c.status, c.want)
+		}
+	}
+}
+
 func TestPendingPartOmittedWhenEmpty(t *testing.T) {
 	dir := t.TempDir()
 	tut := &store.Tutorial{

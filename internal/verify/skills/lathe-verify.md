@@ -5,8 +5,12 @@ Verify that a technical tutorial works end-to-end on this machine by working thr
 ## Setup
 
 The tutorial to verify is at the absolute path in the `LATHE_TUTORIAL_DIR` environment variable.
-Your working directory (the project dir) is a temp directory — write all code and create all files here only.
-Never write files outside the current working directory.
+Your working directory is a fresh temp directory — build everything here. Write all code, create all
+files, and run all commands in the current working directory only.
+
+The tutorial directory (`LATHE_TUTORIAL_DIR`) is **read-only** except for the two output files you
+report into: `verify-result.json` and the `status` field of `metadata.json`. Never write tutorial
+code or build artifacts there, and never modify the tutorial markdown.
 
 ## Process
 
@@ -54,9 +58,24 @@ Write `$LATHE_TUTORIAL_DIR/verify-result.json`:
 
 Then update `$LATHE_TUTORIAL_DIR/metadata.json`: change the `"status"` field value to `"failed"`. Do not modify any other fields.
 
+## Reporting: Skipped
+
+If a tool the tutorial requires is not installed on this machine (e.g., the `zig` binary is not found), this is **not** a failure — the tutorial may be perfectly correct; it simply can't be verified here. Stop and report it as skipped.
+
+Write `$LATHE_TUTORIAL_DIR/verify-result.json`:
+```json
+{
+  "status": "skipped",
+  "error": "required tool not installed: zig",
+  "checked_at": "<RFC3339 timestamp>"
+}
+```
+
+Then update `$LATHE_TUTORIAL_DIR/metadata.json`: change the `"status"` field value to `"skipped"`. Do not modify any other fields. Then stop.
+
 ## Rules
 
 - Only create or modify files inside the current working directory
 - Never modify the tutorial markdown files
-- If a required tool is not installed (e.g., `zig` binary not found), treat it as a failure: `"error": "required tool not installed: zig"`
+- If a required tool is not installed, report it as **skipped** (see above), not failed
 - Count steps per part, resetting to 1 for each new part file
