@@ -16,15 +16,15 @@ func TestStoreSingleTutorial(t *testing.T) {
 	// Override home so we don't pollute the real ~/.lathe
 	t.Setenv("HOME", t.TempDir())
 
-	tut, err := store.Store(src, false)
+	tut, err := store.Store(src)
 	if err != nil {
 		t.Fatalf("Store() error = %v", err)
 	}
 	if tut.IsSeries() {
 		t.Error("Store() IsSeries() = true, want false for single tutorial")
 	}
-	if tut.Status != store.StatusVerified {
-		t.Errorf("Store() Status = %q, want %q", tut.Status, store.StatusVerified)
+	if tut.Status != store.StatusUnverified {
+		t.Errorf("Store() Status = %q, want %q", tut.Status, store.StatusUnverified)
 	}
 }
 
@@ -37,7 +37,7 @@ func TestStoreSeriesTutorial(t *testing.T) {
 	}
 	t.Setenv("HOME", t.TempDir())
 
-	tut, err := store.Store(src, false)
+	tut, err := store.Store(src)
 	if err != nil {
 		t.Fatalf("Store() error = %v", err)
 	}
@@ -49,45 +49,39 @@ func TestStoreSeriesTutorial(t *testing.T) {
 	}
 }
 
-func TestStoreVerifyingStatus(t *testing.T) {
+func TestStoreDefaultsToUnverified(t *testing.T) {
 	src := t.TempDir()
 	if err := os.WriteFile(filepath.Join(src, "index.md"), []byte("# Hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("HOME", t.TempDir())
-	// withVerify=true would try to spawn claude; we skip that by not passing it.
-	// This test uses false — verify the status is "verified" (default) when not verifying.
-	tut, err := store.Store(src, false)
+	// Store never auto-verifies; the default status is unverified.
+	tut, err := store.Store(src)
 	if err != nil {
 		t.Fatalf("Store() error = %v", err)
 	}
-	if tut.Status != store.StatusVerified {
-		t.Errorf("Store() Status = %q, want %q", tut.Status, store.StatusVerified)
+	if tut.Status != store.StatusUnverified {
+		t.Errorf("Store() Status = %q, want %q", tut.Status, store.StatusUnverified)
 	}
 }
 
-func TestStoreWithVerifyStatus(t *testing.T) {
+func TestStoreDoesNotSpawnVerifier(t *testing.T) {
 	src := t.TempDir()
 	if err := os.WriteFile(filepath.Join(src, "index.md"), []byte("# Hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	homeDir := t.TempDir()
 	t.Setenv("HOME", homeDir)
-	t.Setenv("PATH", "") // block claude so SpawnVerifier fails fast without spawning
 
-	// Store should fail because SpawnVerifier can't find claude, but
-	// the metadata.json is written BEFORE SpawnVerifier is called.
-	// We verify the metadata file was written with status=verifying.
-	store.Store(src, true) // intentionally ignoring error
-
-	slug := filepath.Base(src)
-	tutDir := filepath.Join(homeDir, ".lathe", "tutorials", slug)
-	tut, err := store.ReadMetadata(tutDir)
+	tut, err := store.Store(src)
 	if err != nil {
-		t.Fatalf("metadata not written before SpawnVerifier: %v", err)
+		t.Fatalf("Store() error = %v", err)
 	}
-	if tut.Status != store.StatusVerifying {
-		t.Errorf("Status = %q, want %q", tut.Status, store.StatusVerifying)
+
+	tutDir := filepath.Join(homeDir, ".lathe", "tutorials", tut.Slug)
+	// No verify.log means no subprocess was launched.
+	if _, err := os.Stat(filepath.Join(tutDir, "verify.log")); !os.IsNotExist(err) {
+		t.Errorf("Store() should not spawn a verifier; verify.log stat err = %v", err)
 	}
 }
 
@@ -99,7 +93,7 @@ func TestDeleteRemovesTutorial(t *testing.T) {
 	homeDir := t.TempDir()
 	t.Setenv("HOME", homeDir)
 
-	tut, err := store.Store(src, false)
+	tut, err := store.Store(src)
 	if err != nil {
 		t.Fatalf("Store() error = %v", err)
 	}

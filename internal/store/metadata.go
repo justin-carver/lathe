@@ -10,10 +10,12 @@ import (
 type Status string
 
 const (
-	StatusVerifying Status = "verifying"
-	StatusVerified  Status = "verified"
-	StatusFailed    Status = "failed"
-	StatusExtending Status = "extending"
+	StatusUnverified Status = "unverified"
+	StatusVerifying  Status = "verifying"
+	StatusVerified   Status = "verified"
+	StatusFailed     Status = "failed"
+	StatusSkipped    Status = "skipped"
+	StatusExtending  Status = "extending"
 )
 
 type Tutorial struct {
@@ -53,4 +55,21 @@ func WriteMetadata(tutorialDir string, t *Tutorial) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(tutorialDir, "metadata.json"), data, 0644)
+}
+
+func ReadVerifyResult(tutorialDir string) (*VerifyResult, error) {
+	data, err := os.ReadFile(filepath.Join(tutorialDir, "verify-result.json"))
+	if err != nil {
+		return nil, err
+	}
+	var v VerifyResult
+	return &v, json.Unmarshal(data, &v)
+}
+
+func WriteVerifyResult(tutorialDir string, v *VerifyResult) error {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(tutorialDir, "verify-result.json"), data, 0644)
 }

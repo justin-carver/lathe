@@ -298,14 +298,14 @@ Decide the slug before writing. Never write `index.md` or multiple parts.
 Run:
 
 ```bash
-lathe store --verify /tmp/lathe-<slug>
+lathe store /tmp/lathe-<slug>
 ```
 
 Then tell the user:
 
 - "**Tutorial saved.** Run `lathe serve` to open it at http://localhost:4242."
 - "This is Part 1. To add more parts, open the tutorial in `lathe serve` and use **'Add a new part'** at the bottom — you can give guidance or let it continue naturally."
-- "Verification is running in the background — the ⏳ badge turns ✅ when it's done."
+- "Verification is opt-in: click **Verify this tutorial** in the web UI or run `lathe verify <slug>`. It needs the tutorial's toolchain installed locally; if a required tool is missing it shows a ⚠️ Skipped badge (not a failure)."
 
 ## Stay in session
 

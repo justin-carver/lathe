@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{.Title}} — Lathe</title>
-  {{if eq .Tutorial.Status "extending"}}<meta http-equiv="refresh" content="5">{{end}}
+  {{if or (eq .Tutorial.Status "extending") (eq .Tutorial.Status "verifying")}}<meta http-equiv="refresh" content="5">{{end}}
   <script>
     (function(){
       try {
@@ -33,6 +33,7 @@
       --hover-bg:#f3f4f6;--active-bg:#eff6ff;--active-text:#1d4ed8;--code-bg:#f3f4f6;--code-text:#1f2937;--blockquote-border:#d1d5db;
       --badge-verified-bg:#d1fae5;--badge-verified-text:#065f46;--badge-verifying-bg:#fef3c7;--badge-verifying-text:#92400e;
       --badge-failed-bg:#fee2e2;--badge-failed-text:#991b1b;--badge-extending-bg:#e0f2fe;--badge-extending-text:#0369a1;
+      --badge-skipped-bg:#f3f4f6;--badge-skipped-text:#4b5563;
       --callout-note-bg:#eff6ff;--callout-note-border:#3b82f6;--callout-note-label:#1d4ed8;
       --callout-tip-bg:#ecfdf5;--callout-tip-border:#10b981;--callout-tip-label:#047857;
       --callout-warn-bg:#fffbeb;--callout-warn-border:#f59e0b;--callout-warn-label:#b45309;
@@ -46,6 +47,7 @@
       --hover-bg:#222632;--active-bg:#1e2a44;--active-text:#93c5fd;--code-bg:#222632;--code-text:#e5e7eb;--blockquote-border:#374151;
       --badge-verified-bg:#064e3b;--badge-verified-text:#a7f3d0;--badge-verifying-bg:#78350f;--badge-verifying-text:#fde68a;
       --badge-failed-bg:#7f1d1d;--badge-failed-text:#fecaca;--badge-extending-bg:#0c2a40;--badge-extending-text:#7dd3fc;
+      --badge-skipped-bg:#2a2f3a;--badge-skipped-text:#cbd5e1;
       --callout-note-bg:#172033;--callout-note-border:#3b82f6;--callout-note-label:#93c5fd;
       --callout-tip-bg:#0f2820;--callout-tip-border:#10b981;--callout-tip-label:#6ee7b7;
       --callout-warn-bg:#2a1f0a;--callout-warn-border:#f59e0b;--callout-warn-label:#fcd34d;
@@ -71,6 +73,7 @@
     .badge.verifying{background:var(--badge-verifying-bg);color:var(--badge-verifying-text)}
     .badge.failed{background:var(--badge-failed-bg);color:var(--badge-failed-text)}
     .badge.extending{background:var(--badge-extending-bg);color:var(--badge-extending-text)}
+    .badge.skipped{background:var(--badge-skipped-bg);color:var(--badge-skipped-text)}
     nav ul{list-style:none}
     nav li{margin:.2rem 0}
     nav a{display:block;font-size:.85rem;color:var(--text-subtle);text-decoration:none;padding:.35rem .6rem;border-radius:5px}
@@ -170,6 +173,13 @@
     .extend-error{font-size:.85rem;color:var(--badge-failed-text);min-height:1.2em}
     .extending-panel{color:var(--text-muted)}
     .extending-panel .muted{font-size:.85rem;color:var(--text-faint);margin-top:.25rem}
+    .verify-section{margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border)}
+    #verifyForm button[type="submit"]{background:var(--active-bg);color:var(--active-text);border:1px solid var(--active-text);padding:.5rem 1.1rem;border-radius:6px;font:inherit;font-size:.9rem;font-weight:600;cursor:pointer}
+    #verifyForm button[type="submit"]:hover{opacity:.85}
+    .verify-error{font-size:.85rem;color:var(--badge-failed-text);min-height:1.2em;margin-top:.5rem}
+    .verifying-panel{color:var(--text-muted)}
+    .verifying-panel .muted{font-size:.85rem;color:var(--text-faint);margin-top:.25rem}
+    .verify-failure code{word-break:break-all}
 
     /* Floating Ask button (wide screens) */
     #askButton{position:fixed;bottom:1.5rem;right:1.5rem;z-index:40;background:var(--active-bg);color:var(--active-text);border:1px solid var(--border);font:inherit;font-weight:600;font-size:.9rem;padding:.65rem 1.1rem;border-radius:9999px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.15);transition:transform 150ms ease-out,box-shadow 150ms ease-out}
@@ -261,6 +271,7 @@
     {{if eq .Tutorial.Status "verified"}}<span class="badge verified">✅ Verified</span>
     {{else if eq .Tutorial.Status "verifying"}}<span class="badge verifying">⏳ Verifying…</span>
     {{else if eq .Tutorial.Status "failed"}}<span class="badge failed">❌ Failed</span>
+    {{else if eq .Tutorial.Status "skipped"}}<span class="badge skipped">⚠️ Skipped</span>
     {{else if eq .Tutorial.Status "extending"}}<span class="badge extending">⏳ Extending…</span>
     {{end}}
     {{if .TOC}}
@@ -276,6 +287,27 @@
   </nav>
   <main>
     {{.Content}}
+    {{if and (eq .Tutorial.Status "failed") .VerifyResult}}
+    <div class="callout callout-warning verify-failure">
+      <p class="callout-label">Verification failed</p>
+      {{if .VerifyResult.Part}}<p>Part: <code>{{.VerifyResult.Part}}</code></p>{{end}}
+      {{if .VerifyResult.FailedStep}}<p>Failed at step {{.VerifyResult.FailedStep}}.</p>{{end}}
+      {{if .VerifyResult.Error}}<p>{{.VerifyResult.Error}}</p>{{end}}
+    </div>
+    {{end}}
+    {{if eq .Tutorial.Status "verifying"}}
+    <section class="verify-section verifying-panel">
+      <p>⏳ Verifying this tutorial…</p>
+      <p class="muted">This page will refresh automatically.</p>
+    </section>
+    {{else if or (eq .Tutorial.Status "unverified") (eq .Tutorial.Status "failed") (eq .Tutorial.Status "skipped")}}
+    <section class="verify-section">
+      <form id="verifyForm" method="POST" action="/-/verify/{{.Tutorial.Slug}}">
+        <button type="submit">{{if eq .Tutorial.Status "unverified"}}Verify this tutorial{{else}}Re-verify this tutorial{{end}}</button>
+        <p class="verify-error" aria-live="polite"></p>
+      </form>
+    </section>
+    {{end}}
     {{if .Tutorial.IsSeries}}
     <section class="series-toc" aria-label="In this series">
       <h2>In this series</h2>
@@ -792,6 +824,31 @@
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({guidance: guidance})
       }).then(function(r) {
+        if (r.status === 202) {
+          window.location.reload();
+        } else {
+          r.text().then(function(t){ errEl.textContent = 'Error: ' + (t || r.status); });
+          btn.disabled = false;
+        }
+      }).catch(function(err) {
+        errEl.textContent = 'Network error: ' + err.message;
+        btn.disabled = false;
+      });
+    });
+  })();
+</script>
+<script>
+  (function(){
+    var form = document.getElementById('verifyForm');
+    if (!form) return;
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var action = form.getAttribute('action');
+      var errEl = form.querySelector('.verify-error');
+      errEl.textContent = '';
+      var btn = form.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      fetch(action, {method: 'POST'}).then(function(r) {
         if (r.status === 202) {
           window.location.reload();
         } else {

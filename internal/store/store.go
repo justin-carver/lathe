@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/devenjarvis/lathe/internal/config"
-	"github.com/devenjarvis/lathe/internal/verify"
 )
 
-func Store(srcPath string, withVerify bool) (*Tutorial, error) {
+// Store copies a tutorial directory into ~/.lathe/tutorials/ and writes its
+// metadata with status=unverified. Verification is opt-in and never auto-runs
+// here — callers trigger it separately via verify.StartVerification.
+func Store(srcPath string) (*Tutorial, error) {
 	slug := filepath.Base(strings.TrimSuffix(srcPath, string(filepath.Separator)))
 
 	tutorialsDir, err := config.TutorialsDir()
@@ -27,28 +29,18 @@ func Store(srcPath string, withVerify bool) (*Tutorial, error) {
 	}
 
 	parts := detectParts(destDir)
-	status := StatusVerified
-	if withVerify {
-		status = StatusVerifying
-	}
 
 	t := &Tutorial{
 		Slug:    slug,
 		Title:   SlugToTitle(slug),
 		Topic:   slug,
 		Created: time.Now().UTC(),
-		Status:  status,
+		Status:  StatusUnverified,
 		Parts:   parts,
 	}
 
 	if err := WriteMetadata(destDir, t); err != nil {
 		return nil, err
-	}
-
-	if withVerify {
-		if err := verify.SpawnVerifier(slug, destDir); err != nil {
-			return nil, fmt.Errorf("spawn verifier: %w", err)
-		}
 	}
 
 	return t, nil

@@ -49,6 +49,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /-/delete/{slug}", s.handleDelete)
 	mux.HandleFunc("POST /-/ask/{slug}/{part}", s.handleAsk)
 	mux.HandleFunc("POST /-/extend/{slug}", s.handleExtend)
+	mux.HandleFunc("POST /-/verify/{slug}", s.handleVerify)
 	return mux
 }
 
@@ -222,10 +223,21 @@ func (s *Server) renderPart(w http.ResponseWriter, tut *store.Tutorial, tutDir, 
 		}
 	}
 
+	// On failure, surface the verifier's recorded part/step/error so the page
+	// explains what broke instead of just showing a red badge. Best-effort:
+	// a missing or malformed verify-result.json simply renders no panel.
+	var verifyResult *store.VerifyResult
+	if tut.Status == store.StatusFailed {
+		if vr, err := store.ReadVerifyResult(tutDir); err == nil {
+			verifyResult = vr
+		}
+	}
+
 	var buf bytes.Buffer
 	if err := s.layoutTmpl.Execute(&buf, map[string]any{
 		"Title":             tut.Title,
 		"Tutorial":          tut,
+		"VerifyResult":      verifyResult,
 		"CurrentPart":       part,
 		"CurrentPartNumber": currentNumber,
 		"Content":           template.HTML(content),
