@@ -22,7 +22,21 @@
 <header id="topBar">
   <button type="button" id="hamburger" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">≡</button>
   <a href="/" class="back-link">← All tutorials</a>
-  <span class="crumb"><strong>{{.Tutorial.Title}}</strong>{{if and .Tutorial.IsSeries .CurrentPartNumber}}<span class="sep">›</span>Part {{.CurrentPartNumber}}{{end}}</span>
+  <span class="crumb"><strong>{{.Tutorial.Title}}</strong>{{if and .Tutorial.IsSeries .CurrentPartNumber}}<span class="sep">›</span>
+    <details class="part-picker">
+      <summary>Part {{.CurrentPartNumber}}<span class="caret" aria-hidden="true">▾</span></summary>
+      <ul class="part-menu">
+        {{range .SeriesTOC}}
+        <li>
+          {{if .Current}}
+          <span class="part-menu-current" aria-current="page"><span class="part-num">Part {{.Number}}</span><span class="title">{{.Title}}</span></span>
+          {{else}}
+          <a href="/{{$.Tutorial.Slug}}/{{.Slug}}"><span class="part-num">Part {{.Number}}</span><span class="title">{{.Title}}</span></a>
+          {{end}}
+        </li>
+        {{end}}
+      </ul>
+    </details>{{end}}</span>
   {{template "themeToggle" .}}
 </header>
 <div class="layout">
@@ -205,6 +219,25 @@
       a.addEventListener('click', function(){
         if (window.matchMedia('(max-width:899px)').matches) setOpen(false);
       });
+    });
+  })();
+</script>
+<script>
+  // Part picker — native <details> handles open/close + keyboard toggle (works
+  // with JS off). This only adds the niceties: close any open picker on an
+  // outside-click or Escape, mirroring the sidebar Escape handling above.
+  (function(){
+    var picker = document.querySelector('.part-picker');
+    if (!picker) return;
+    document.addEventListener('click', function(ev){
+      if (picker.open && !picker.contains(ev.target)) picker.open = false;
+    });
+    document.addEventListener('keydown', function(ev){
+      if (ev.key === 'Escape' && picker.open) {
+        picker.open = false;
+        var summary = picker.querySelector('summary');
+        if (summary) summary.focus();
+      }
     });
   })();
 </script>

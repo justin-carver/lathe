@@ -279,7 +279,13 @@ func TestSeriesPartPrevNext(t *testing.T) {
 			}
 			body := w.Body.String()
 
-			wantCrumb := `<span class="sep">›</span>` + tc.wantCrumb
+			// The breadcrumb part segment now lives inside the part-picker's
+			// <summary> (a <details> disclosure listing every part); the ›
+			// separator still precedes it.
+			if !strings.Contains(body, `<span class="sep">›</span>`) {
+				t.Errorf("missing breadcrumb separator for %s", tc.part)
+			}
+			wantCrumb := `<summary>` + tc.wantCrumb
 			if !strings.Contains(body, wantCrumb) {
 				t.Errorf("missing breadcrumb segment %q", wantCrumb)
 			}
