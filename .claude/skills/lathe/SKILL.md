@@ -17,7 +17,7 @@ The user says something like `/lathe build a digital synth in Zig` or `/lathe ho
 4. **Research the topic first** (see below) — this is the single most important step for accuracy. Lathe exists to teach things with little training material behind them, which is exactly where recalled "knowledge" is most likely to be invented. Don't skip it.
 5. Run the **Pre-flight** in your head — silently. Don't ask the user to approve the choices.
 6. Write Part 1.
-7. Hand off to the CLI.
+7. Hand off to the CLI — clear the **pre-store gate** in "After writing" (state repo, versions, tags, sources or a justified opt-out) *before* running `lathe store`.
 
 ## Pin the repo and versions (before research)
 
@@ -332,6 +332,25 @@ Decide the slug before writing. Never write `index.md` or multiple parts.
 
 ## After writing
 
+> [!HEADS-UP]
+> **STOP — pre-store gate. Fill this in before you run `lathe store`.** Repo and
+> versions get silently dropped when the store call is reached without them, so
+> every store *must* state a concrete value or an explicit, justified opt-out for
+> all four flag groups. Omission without a stated reason is not allowed:
+>
+> - **Repo (`--repo` / `--repo-branch`)** → the repo + branch you pinned in
+>   "Pin the repo and versions" above, e.g. `--repo <origin-url> --repo-branch <branch>`.
+>   Opt-out only with a reason: *"standalone tutorial, no repo"*.
+> - **Versions (`--tool name:version`)** → one `--tool` per toolchain version you
+>   pinned in that same step, e.g. `--tool zig:0.13.0 --tool llvm:18`.
+>   Opt-out only with a reason: *"no specific toolchain applies"*.
+> - **Tags (`--tag`)** → 2–5 lowercase tags (see below).
+> - **Sources (`--source`)** → one per authoritative source you read, or the
+>   stated reason *"no web access this session"*.
+>
+> Carry the repo/version values straight over from the upfront pinning step — if
+> you find you never pinned them, go back and do it now rather than storing blank.
+
 Run:
 
 ```bash
@@ -350,11 +369,14 @@ will group naturally with other tutorials over hyper-specific one-offs.
 
 Pass `--repo` and `--repo-branch` with the repo you pinned (see "Pin the repo
 and versions"). Give `--repo` the raw `origin` URL — `lathe store` canonicalizes
-it to `host/org/repo` for grouping — and omit both flags entirely for a
-standalone tutorial with no repo. **Don't put versions in tags**: pass each
-pinned tool as `--tool name:version` (repeatable, e.g. `--tool zig:0.13.0
---tool llvm:18`). Lathe stores these as structured versions, shows them as chips
-on the card, and gives them their own filter — keeping the tag vocabulary clean.
+it to `host/org/repo` for grouping. A standalone tutorial with no repo is a
+legitimate case, but dropping these flags is a *deliberate, stated* choice
+surfaced by the pre-store gate above (*"standalone tutorial, no repo"*) — never a
+quiet default. **Don't put versions in tags**: pass each tool you pinned in that
+same step as `--tool name:version` (repeatable, e.g. `--tool zig:0.13.0 --tool
+llvm:18`) — these come from the pinned toolchain and must be passed, not folded
+into tags. Lathe stores them as structured versions, shows them as chips on the
+card, and gives them their own filter — keeping the tag vocabulary clean.
 
 Pass `--source <url>` once for each authoritative source you consulted during
 the **Research first** step — the research trail, not just the ones you cited
