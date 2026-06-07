@@ -12,7 +12,7 @@
   </div>
   {{template "themeToggle" .}}
 </div>
-{{if .Groups}}
+{{if .Tutorials}}
 <div class="controls">
   <div class="toolbar">
     <input type="search" id="searchInput" class="search-input" placeholder="Search by title, topic, tag, repo, or version…" aria-label="Search tutorials" autocomplete="off">
@@ -44,10 +44,8 @@
     </div>
   </div>
 </div>
-{{range .Groups}}
-<details class="repo-group" open>
-  <summary class="repo-group-summary"><span class="repo-group-name">{{.Name}}</span><span class="repo-group-count">{{len .Tutorials}}</span></summary>
-  {{range .Tutorials}}
+<div class="tutorial-list" id="tutorialList">
+{{range .Tutorials}}
   <div class="tutorial" data-title="{{.Title}}" data-slug="{{.Slug}}" data-topic="{{.Topic}}" data-tags="{{range .Tags}}{{.}},{{end}}" data-repo="{{.RepoDisplay}}" data-tools="{{range .Tools}}{{.Name}}{{if .Version}} {{.Version}}{{end}},{{end}}" data-status="{{.Status}}" data-created="{{.Created.Format "2006-01-02T15:04:05Z07:00"}}" data-series="{{.IsSeries}}">
     <div class="tutorial-body">
       <a class="tutorial-link" href="/{{.Slug}}/">{{.Title}}</a>
@@ -62,9 +60,8 @@
       </form>
     </div>
   </div>
-  {{end}}
-</details>
 {{end}}
+</div>
 <div class="no-results" id="noResults" hidden>No tutorials match your search.</div>
 {{else}}
 <div class="empty">No tutorials yet. Run <code>/lathe</code> in Claude Code to generate one.</div>
@@ -106,13 +103,13 @@
   })();
   // Client-side search / filter / sort. Metadata only — matches the data-*
   // attributes the template renders, so there are no server round-trips. Cards
-  // live inside per-repo <details> groups; sorting reorders within each group
-  // and a group whose cards are all filtered out is hidden. With JS off, every
-  // card and group stays visible (.hidden is only ever set here).
+  // live in a single flat #tutorialList container; sorting reorders that
+  // container in place. With JS off, every card stays visible (.hidden is only
+  // ever set here).
   (function(){
     var cards = Array.prototype.slice.call(document.querySelectorAll('.tutorial'));
     if (!cards.length) return;
-    var groups = Array.prototype.slice.call(document.querySelectorAll('.repo-group'));
+    var list = document.getElementById('tutorialList');
     var search = document.getElementById('searchInput');
     var sortSel = document.getElementById('sortSelect');
     var filterToggle = document.getElementById('filterToggle');
@@ -184,13 +181,6 @@
         card.classList.toggle('hidden', !show);
         if (show) visible++;
       });
-      // Hide any repo group with no visible cards; keep its header count in sync.
-      groups.forEach(function(g){
-        var shown = g.querySelectorAll('.tutorial:not(.hidden)').length;
-        g.classList.toggle('hidden', shown === 0);
-        var count = g.querySelector('.repo-group-count');
-        if (count) count.textContent = shown;
-      });
       noResults.hidden = visible !== 0;
       // Surface how many pill filters are active so collapsing the panel never
       // hides that filtering is on.
@@ -211,11 +201,8 @@
       });
     }
     function sort(){
-      // Reorder cards within each group (the summary stays the first child).
-      groups.forEach(function(g){
-        var gcards = Array.prototype.slice.call(g.querySelectorAll('.tutorial'));
-        sortCards(gcards).forEach(function(c){ g.appendChild(c); });
-      });
+      // Reorder cards within the single flat container.
+      sortCards(cards).forEach(function(c){ list.appendChild(c); });
     }
 
     search.addEventListener('input', apply);
@@ -230,7 +217,7 @@
       });
     });
 
-    sort();   // default ordering (newest) within each group
+    sort();   // default ordering (newest) for the flat list
     apply();
   })();
 </script>

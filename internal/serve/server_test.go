@@ -236,12 +236,13 @@ func TestListPageRendersTagsAndControls(t *testing.T) {
 	}
 }
 
-func TestListPageGroupsByRepoAndRendersVersions(t *testing.T) {
+func TestListPageRendersCardsAndVersions(t *testing.T) {
 	dir := t.TempDir()
 
-	// Two tutorials in the same repo, one with no repo — exercises grouping and
-	// the "No repo" bucket, plus version chips and the Versions filter row.
-	mk := func(slug string, repo string, tools []store.Tool) {
+	// Three tutorials with distinct created times — exercises the flat
+	// newest-first list, repo as searchable metadata (data-repo), and version
+	// chips + the Versions filter row.
+	mk := func(slug string, repo string, tools []store.Tool, created time.Time) {
 		tutDir := filepath.Join(dir, slug)
 		if err := os.MkdirAll(tutDir, 0755); err != nil {
 			t.Fatal(err)
@@ -253,7 +254,7 @@ func TestListPageGroupsByRepoAndRendersVersions(t *testing.T) {
 			Slug:    slug,
 			Title:   slug,
 			Status:  store.StatusUnverified,
-			Created: time.Now(),
+			Created: created,
 			Repo:    repo,
 			Tools:   tools,
 		}
@@ -261,9 +262,10 @@ func TestListPageGroupsByRepoAndRendersVersions(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	mk("synth-zig", "github.com/devenjarvis/lathe", []store.Tool{{Name: "zig", Version: "0.13.0"}})
-	mk("compiler-go", "github.com/devenjarvis/lathe", []store.Tool{{Name: "go", Version: "1.22"}})
-	mk("standalone", "", nil)
+	now := time.Now()
+	mk("synth-zig", "github.com/devenjarvis/lathe", []store.Tool{{Name: "zig", Version: "0.13.0"}}, now)
+	mk("compiler-go", "github.com/devenjarvis/lathe", []store.Tool{{Name: "go", Version: "1.22"}}, now.Add(-time.Hour))
+	mk("standalone", "", nil, now.Add(-2*time.Hour))
 
 	srv := serve.NewServer(dir)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -271,12 +273,7 @@ func TestListPageGroupsByRepoAndRendersVersions(t *testing.T) {
 	srv.Handler().ServeHTTP(w, req)
 	body := w.Body.String()
 
-	if !strings.Contains(body, `<span class="repo-group-name">devenjarvis/lathe</span>`) {
-		t.Error("list page missing repo group header for devenjarvis/lathe")
-	}
-	if !strings.Contains(body, `<span class="repo-group-name">No repo</span>`) {
-		t.Error("list page missing the 'No repo' group for repo-less tutorials")
-	}
+	// Repo stays searchable metadata even though grouping is gone.
 	if !strings.Contains(body, `data-repo="devenjarvis/lathe"`) {
 		t.Error("card missing data-repo attribute for search/filter")
 	}
@@ -289,12 +286,16 @@ func TestListPageGroupsByRepoAndRendersVersions(t *testing.T) {
 	if !strings.Contains(body, `id="versionFilters"`) {
 		t.Error("list page missing the Versions filter row")
 	}
-	// The repo group must come before the no-repo bucket. Match the group-header
-	// markup specifically (the bare strings also appear in the inline CSS).
-	repoHdr := strings.Index(body, `repo-group-name">devenjarvis/lathe<`)
-	noRepoHdr := strings.Index(body, `repo-group-name">No repo<`)
-	if repoHdr == -1 || noRepoHdr == -1 || repoHdr > noRepoHdr {
-		t.Errorf("repo group (%d) should render before the 'No repo' bucket (%d)", repoHdr, noRepoHdr)
+
+	// All three cards render in one flat list, newest-first.
+	posSynth := strings.Index(body, `data-slug="synth-zig"`)
+	posCompiler := strings.Index(body, `data-slug="compiler-go"`)
+	posStandalone := strings.Index(body, `data-slug="standalone"`)
+	if posSynth == -1 || posCompiler == -1 || posStandalone == -1 {
+		t.Fatalf("expected all three cards to render (synth=%d compiler=%d standalone=%d)", posSynth, posCompiler, posStandalone)
+	}
+	if posSynth >= posCompiler || posCompiler >= posStandalone {
+		t.Errorf("cards should render newest-first: synth(%d) < compiler(%d) < standalone(%d)", posSynth, posCompiler, posStandalone)
 	}
 }
 
