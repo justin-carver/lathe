@@ -111,62 +111,6 @@ func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-// RepoGroup is a set of tutorials sharing a git repo, used to render the list
-// page grouped by repo. Repo is the canonical key ("" for the no-repo bucket)
-// and Name is the human-facing label shown in the group header.
-type RepoGroup struct {
-	Repo      string
-	Name      string
-	Tutorials []*store.Tutorial
-}
-
-// groupByRepo buckets tutorials by their canonical Repo, ordering groups so the
-// most-recently-touched repos come first and the catch-all "No repo" bucket
-// comes last. Tutorials within each group default to newest-first (the client
-// sort control can re-order them).
-func groupByRepo(tutorials []*store.Tutorial) []RepoGroup {
-	idx := make(map[string]int)
-	var groups []RepoGroup
-	for _, t := range tutorials {
-		i, ok := idx[t.Repo]
-		if !ok {
-			name := t.RepoDisplay()
-			if t.Repo == "" {
-				name = "No repo"
-			}
-			idx[t.Repo] = len(groups)
-			i = len(groups)
-			groups = append(groups, RepoGroup{Repo: t.Repo, Name: name})
-		}
-		groups[i].Tutorials = append(groups[i].Tutorials, t)
-	}
-	newest := func(tuts []*store.Tutorial) time.Time {
-		var max time.Time
-		for _, t := range tuts {
-			if t.Created.After(max) {
-				max = t.Created
-			}
-		}
-		return max
-	}
-	for gi := range groups {
-		g := groups[gi].Tutorials
-		sort.SliceStable(g, func(a, b int) bool { return g[a].Created.After(g[b].Created) })
-	}
-	sort.SliceStable(groups, func(a, b int) bool {
-		// The no-repo bucket always sinks to the bottom.
-		if (groups[a].Repo == "") != (groups[b].Repo == "") {
-			return groups[b].Repo == ""
-		}
-		na, nb := newest(groups[a].Tutorials), newest(groups[b].Tutorials)
-		if !na.Equal(nb) {
-			return na.After(nb)
-		}
-		return groups[a].Name < groups[b].Name
-	})
-	return groups
-}
-
 func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
 	entries, err := os.ReadDir(s.tutorialsDir)
 	if err != nil {
@@ -184,9 +128,15 @@ func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
 		}
 		tutorials = append(tutorials, tut)
 	}
+	// Flat, newest-first ordering — matches the previous within-group default so
+	// the JS-off initial order is unchanged. The client sort control re-orders
+	// from here.
+	sort.SliceStable(tutorials, func(a, b int) bool {
+		return tutorials[a].Created.After(tutorials[b].Created)
+	})
 	var buf bytes.Buffer
 	if err := s.listTmpl.Execute(&buf, map[string]any{
-		"Groups":       groupByRepo(tutorials),
+		"Tutorials":    tutorials,
 		"CSS":          s.designCSS,
 		"HighlightCSS": s.highlightCSS,
 	}); err != nil {

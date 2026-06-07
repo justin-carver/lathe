@@ -31,8 +31,8 @@ type Tutorial struct {
 	// Repo is the canonical identifier (host/org/repo) of the git repository the
 	// tutorial was written for, derived from the repo's origin remote by the
 	// generation skill and normalized by NormalizeRepo. Tutorials with no repo
-	// leave it empty and group under "No repo" in the web UI. RepoBranch records
-	// the branch the tutorial targets (only meaningful when Repo is set).
+	// leave it empty. RepoBranch records the branch the tutorial targets (only
+	// meaningful when Repo is set).
 	Repo       string `json:"repo,omitempty"`
 	RepoBranch string `json:"repo_branch,omitempty"`
 	// Tools are the languages/tools and their versions the tutorial is rooted in,
@@ -77,7 +77,7 @@ func (t *Tutorial) IsSeries() bool {
 
 // RepoDisplay returns the short, human-facing form of the repo (the last two
 // path segments, e.g. "devenjarvis/lathe"), or "" when no repo is set. Used as
-// the group label on the web list page.
+// the data-repo attribute on list-page cards for client-side search.
 func (t *Tutorial) RepoDisplay() string {
 	if t.Repo == "" {
 		return ""
